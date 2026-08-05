@@ -80,10 +80,22 @@ async function getAllTools() {
 }
 
 async function callTool(name, args) {
-  const owner = UPSTREAMS.find((u) => {
+  // 先在现有 cache 里找
+  let owner = UPSTREAMS.find((u) => {
     const cached = cache.get(u.name);
     return cached && cached.tools.some((t) => t.name === name);
   });
+
+  // cache 里没有的话，先刷新一次再找
+  if (!owner) {
+    console.log(`[callTool] cache 未命中 "${name}"，重新拉取所有工具...`);
+    await getAllTools();
+    owner = UPSTREAMS.find((u) => {
+      const cached = cache.get(u.name);
+      return cached && cached.tools.some((t) => t.name === name);
+    });
+  }
+
   if (!owner) throw new Error(`未知工具: ${name}`);
   const entry = await getUpstream(owner);
   return await entry.client.callTool({ name, arguments: args });
