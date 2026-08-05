@@ -1,10 +1,6 @@
 import express from 'express';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { randomUUID } from 'crypto';
 
 const UPSTREAMS = [
   {
@@ -23,33 +19,28 @@ const allTools = [];
 
 async function initUpstreams() {
   for (const upstream of UPSTREAMS) {
-    if (!upstream.url) {
-      console.warn(`[${upstream.name}] URL not set, skipping`);
-      continue;
-    }
+    if (!upstream.url) continue;
     try {
       const headers = upstream.token
         ? { Authorization: `Bearer ${upstream.token}` }
         : {};
-
       const client = new Client({ name: 'aggregator', version: '1.0.0' });
       const transport = new StreamableHTTPClientTransport(
         new URL(upstream.url),
         { requestInit: { headers } }
       );
       await client.connect(transport);
-
       const result = await client.listTools();
       for (const tool of result.tools) {
         toolMap.set(tool.name, { client });
         allTools.push(tool);
       }
-      console.log(`[${upstream.name}] 已连接，加载了 ${result.tools.length} 个工具`);
+      console.log(`[${upstream.name}] 连接成功，${result.tools.length} 个工具`);
     } catch (err) {
       console.error(`[${upstream.name}] 连接失败:`, err.message);
     }
   }
-  console.log(`共加载 ${allTools.length} 个工具`);
+  console.log(`共 ${allTools.length} 个工具`);
 }
 
 async function main() {
@@ -57,8 +48,6 @@ async function main() {
 
   const app = express();
   app.use(express.json());
-
-  // CORS
   app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE');
@@ -67,62 +56,47 @@ async function main() {
     next();
   });
 
-  // OAuth metadata
-  app.get('/.well-known/oauth-authorization-server', (req, res) => {
-    const base = `${req.protocol}://${req.hostname}`;
-    res.json({
-      issuer: base,
-      authorization_endpoint: `${base}/oauth/authorize`,
-      token_endpoint: `${base}/oauth/token`,
-      response_types_supported: ['code'],
-      grant_types_supported: ['authorization_code'],
-      code_challenge_methods_supported: ['S256'],
-    });
-  });
-
-  app.get('/health', (_req, res) => {
-    res.json({ ok: true, tools: allTools.length });
-  });
-
-  app.get('/mcp', (_req, res) => {
-    res.status(405).json({ error: 'Use POST for MCP' });
-  });
+  app.get('/health', (_req, res) => res.json({ ok: true, tools: allTools.length }));
+  app.delete('/mcp', (_req, res) => res.sendStatus(200));
+  app.get('/mcp', (_req, res) => res.sendStatus(405));
 
   app.post('/mcp', async (req, res) => {
-    const server = new Server(
-      { name: 'mcp-aggregator', version: '1.0.0' },
-      { capabilities: { tools: {} } }
-    );
+    const { method, params, id } = req.body;
 
-    server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: allTools }));
+    const ok = (result) => res.json({ jsonrpc: '2.0', id, result });
+    const err = (code, message) => res.json({ jsonrpc: '2.0', id, error: { code, message } });
 
-    server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      const { name, arguments: args } = request.params;
-      const entry = toolMap.get(name);
-      if (!entry) throw new Error(`未知工具: ${name}`);
-      return await entry.client.callTool({ name, arguments: args });
-    });
+    try {
+      if (method === 'initialize') {
+        return ok({
+          protocolVersion: '2024-11-05',
+          capabilities: { tools: {} },
+          serverInfo: { name: 'mcp-aggregator', version: '1.0.0' },
+        });
+      }
 
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
-    });
+      if (method === 'notifications/initialized') return res.sendStatus(202);
 
-    res.on('close', () => transport.close());
-    await server.connect(transport);
-    await transport.handleRequest(req, res, req.body);
-  });
+      if (method === 'ping') return ok({});
 
-  app.delete('/mcp', (_req, res) => {
-    res.status(200).json({ ok: true });
+      if (method === 'tools/list') return ok({ tools: allTools });
+
+      if (method === 'tools/call') {
+        const { name, arguments: args } = params;
+        const entry = toolMap.get(name);
+        if (!entry) return err(-32601, `Tool not found: ${name}`);
+        const result = await entry.client.callTool({ name, arguments: args });
+        return ok(result);
+      }
+
+      return err(-32601, `Method not found: ${method}`);
+    } catch (e) {
+      return err(-32603, e.message);
+    }
   });
 
   const port = process.env.PORT || 3000;
-  app.listen(port, () =>
-    console.log(`MCP Aggregator 运行在 :${port}，共 ${allTools.length} 个工具`)
-  );
+  app.listen(port, () => console.log(`MCP Aggregator on :${port}, ${allTools.length} tools`));
 }
 
-main().catch((err) => {
-  console.error('启动失败:', err);
-  process.exit(1);
-});
+main().catch(err => { console.error(err); process.exit(1); });
