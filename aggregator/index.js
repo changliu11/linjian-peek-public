@@ -14,9 +14,8 @@ const UPSTREAMS = [
   },
 ];
 
-// 缓存：每个上游的 client + 工具列表，带过期时间
-const cache = new Map(); // name -> { client, tools, expiresAt }
-const CACHE_TTL = 5 * 60 * 1000; // 5分钟缓存，避免每次请求都重连
+const cache = new Map();
+const CACHE_TTL = 5 * 60 * 1000;
 
 async function connectUpstream(upstream) {
   const headers = upstream.token
@@ -32,7 +31,6 @@ async function connectUpstream(upstream) {
   return { client, tools: result.tools };
 }
 
-// 获取（或重新建立）某个上游的连接，带重试
 async function getUpstream(upstream, retries = 3) {
   const cached = cache.get(upstream.name);
   if (cached && cached.expiresAt > Date.now()) {
@@ -49,56 +47,55 @@ async function getUpstream(upstream, retries = 3) {
     } catch (err) {
       lastErr = err;
       console.error(`[${upstream.name}] 连接失败(第${i + 1}次): ${err.message}`);
-      // Render 免费实例冷启动可能要等 30-50 秒，重试前等一下
       await new Promise((r) => setTimeout(r, 8000));
     }
   }
   throw lastErr;
 }
 
-// 获取全部工具（并行拉取所有上游，单个失败不影响其他）
 async function getAllTools() {
   const allTools = [];
-  const toolOwner = new Map(); // toolName -> upstream name
-
   const results = await Promise.allSettled(
     UPSTREAMS.filter((u) => u.url).map((u) => getUpstream(u).then((e) => ({ u, e })))
   );
-
   for (const r of results) {
     if (r.status === 'fulfilled') {
-      const { u, e } = r.value;
-      for (const tool of e.tools) {
+      for (const tool of r.value.e.tools) {
         allTools.push(tool);
-        toolOwner.set(tool.name, u.name);
       }
     } else {
       console.error('上游拉取失败:', r.reason?.message);
     }
   }
-  return { allTools, toolOwner };
+  return allTools;
 }
 
 async function callTool(name, args) {
-  // 先在现有 cache 里找
-  let owner = UPSTREAMS.find((u) => {
+  // 找持有这个工具的上游
+  const findOwner = () => UPSTREAMS.find((u) => {
     const cached = cache.get(u.name);
     return cached && cached.tools.some((t) => t.name === name);
   });
 
-  // cache 里没有的话，先刷新一次再找
+  let owner = findOwner();
   if (!owner) {
-    console.log(`[callTool] cache 未命中 "${name}"，重新拉取所有工具...`);
+    // cache 里没有，刷新一次
     await getAllTools();
-    owner = UPSTREAMS.find((u) => {
-      const cached = cache.get(u.name);
-      return cached && cached.tools.some((t) => t.name === name);
-    });
+    owner = findOwner();
   }
-
   if (!owner) throw new Error(`未知工具: ${name}`);
-  const entry = await getUpstream(owner);
-  return await entry.client.callTool({ name, arguments: args });
+
+  // 第一次调用
+  try {
+    const entry = await getUpstream(owner);
+    return await entry.client.callTool({ name, arguments: args });
+  } catch (err) {
+    // 调用失败说明连接断了，清除缓存强制重连再试一次
+    console.error(`[${owner.name}] 工具调用失败，清除缓存重连: ${err.message}`);
+    cache.delete(owner.name);
+    const entry = await getUpstream(owner);
+    return await entry.client.callTool({ name, arguments: args });
+  }
 }
 
 async function main() {
@@ -113,8 +110,7 @@ async function main() {
   });
 
   app.get('/health', async (_req, res) => {
-    // 访问 /health 时顺带唤醒并刷新所有上游
-    const { allTools } = await getAllTools();
+    const allTools = await getAllTools();
     res.json({ ok: true, tools: allTools.length });
   });
 
@@ -138,7 +134,7 @@ async function main() {
       if (method === 'ping') return ok({});
 
       if (method === 'tools/list') {
-        const { allTools } = await getAllTools();
+        const allTools = await getAllTools();
         return ok({ tools: allTools });
       }
 
@@ -158,7 +154,4 @@ async function main() {
   app.listen(port, () => console.log(`MCP Aggregator on :${port}`));
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main().catch((err) => { console.error(err); process.exit(1); });
