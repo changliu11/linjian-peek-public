@@ -57,8 +57,35 @@ async function main() {
   const app = express();
   app.use(express.json());
 
+  // CORS
+  app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, mcp-session-id');
+    if (req.method === 'OPTIONS') return res.sendStatus(200);
+    next();
+  });
+
+  // OAuth metadata - 告诉 Claude 不需要认证
+  app.get('/.well-known/oauth-authorization-server', (req, res) => {
+    const base = `${req.protocol}://${req.hostname}`;
+    res.json({
+      issuer: base,
+      authorization_endpoint: `${base}/oauth/authorize`,
+      token_endpoint: `${base}/oauth/token`,
+      response_types_supported: ['code'],
+      grant_types_supported: ['authorization_code'],
+      code_challenge_methods_supported: ['S256'],
+    });
+  });
+
   app.get('/health', (_req, res) => {
     res.json({ ok: true, tools: allTools.length });
+  });
+
+  // 处理 GET /mcp (SSE 或探测)
+  app.get('/mcp', (req, res) => {
+    res.status(405).json({ error: 'Use POST for MCP' });
   });
 
   app.post('/mcp', async (req, res) => {
@@ -83,6 +110,11 @@ async function main() {
     res.on('close', () => transport.close());
     await server.connect(transport);
     await transport.handleRequest(req, res, req.body);
+  });
+
+  // DELETE /mcp (session 清理)
+  app.delete('/mcp', async (req, res) => {
+    res.status(200).json({ ok: true });
   });
 
   const port = process.env.PORT || 3000;
