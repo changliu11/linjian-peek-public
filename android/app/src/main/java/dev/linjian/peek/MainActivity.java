@@ -67,7 +67,7 @@ public class MainActivity extends Activity {
     private EditText batteryThresholdInput, screenThresholdInput, waterIntervalInput, restIntervalInput;
     private EditText lastPeriodStartInput, cycleLengthInput, periodLengthInput, cycleRemindBeforeInput;
     private EditText appAliasInput, appPackageInput, homeWatchPackagesInput, homeThresholdInput, homeCooldownInput, homeTargetInput, gateAliasInput, gatePackageInput;
-    private EditText guidianIntervalInput, guidianCooldownInput, guidianDailyMaxInput, guidianQuietStartInput, guidianQuietEndInput, guidianTargetPackageInput, guidianPromptInput, guidianReasonInput, guidianRejectReplyInput;
+    private EditText guidianIntervalInput, guidianCooldownInput, guidianDailyMaxInput, guidianQuietStartInput, guidianQuietEndInput, guidianTargetPackageInput, guidianPromptInput, guidianReasonInput;
     private boolean serviceRunning = false;
     private String currentTab = "life";
     private boolean weatherFetching = false;
@@ -170,7 +170,7 @@ public class MainActivity extends Activity {
         batteryThresholdInput = findViewById(R.id.batteryThresholdInput); screenThresholdInput = findViewById(R.id.screenThresholdInput); waterIntervalInput = findViewById(R.id.waterIntervalInput); restIntervalInput = findViewById(R.id.restIntervalInput);
         lastPeriodStartInput = findViewById(R.id.lastPeriodStartInput); cycleLengthInput = findViewById(R.id.cycleLengthInput); periodLengthInput = findViewById(R.id.periodLengthInput); cycleRemindBeforeInput = findViewById(R.id.cycleRemindBeforeInput);
         appAliasInput = findViewById(R.id.appAliasInput); appPackageInput = findViewById(R.id.appPackageInput); homeWatchPackagesInput = findViewById(R.id.homeWatchPackagesInput); homeThresholdInput = findViewById(R.id.homeThresholdInput); homeCooldownInput = findViewById(R.id.homeCooldownInput); homeTargetInput = findViewById(R.id.homeTargetInput); gateAliasInput = findViewById(R.id.gateAliasInput); gatePackageInput = findViewById(R.id.gatePackageInput);
-        guidianIntervalInput = findViewById(R.id.guidianIntervalInput); guidianCooldownInput = findViewById(R.id.guidianCooldownInput); guidianDailyMaxInput = findViewById(R.id.guidianDailyMaxInput); guidianQuietStartInput = findViewById(R.id.guidianQuietStartInput); guidianQuietEndInput = findViewById(R.id.guidianQuietEndInput); guidianTargetPackageInput = findViewById(R.id.guidianTargetPackageInput); guidianPromptInput = findViewById(R.id.guidianPromptInput); guidianReasonInput = findViewById(R.id.guidianReasonInput); guidianRejectReplyInput = findViewById(R.id.guidianRejectReplyInput);
+        guidianIntervalInput = findViewById(R.id.guidianIntervalInput); guidianCooldownInput = findViewById(R.id.guidianCooldownInput); guidianDailyMaxInput = findViewById(R.id.guidianDailyMaxInput); guidianQuietStartInput = findViewById(R.id.guidianQuietStartInput); guidianQuietEndInput = findViewById(R.id.guidianQuietEndInput); guidianTargetPackageInput = findViewById(R.id.guidianTargetPackageInput); guidianPromptInput = findViewById(R.id.guidianPromptInput); guidianReasonInput = findViewById(R.id.guidianReasonInput);
     }
 
     private void loadSettings() {
@@ -220,7 +220,6 @@ public class MainActivity extends Activity {
         if (guidianTargetPackageInput != null) guidianTargetPackageInput.setText(prefs.getString(GuidianState.KEY_TARGET_PACKAGE, AppPrefs.homeTargetPackage(this)));
         if (guidianPromptInput != null) guidianPromptInput.setText(prefs.getString(GuidianState.KEY_PROMPTS, GuidianState.defaultPrompts()));
         if (guidianReasonInput != null) guidianReasonInput.setText(prefs.getString(GuidianState.KEY_REASONS, GuidianState.defaultReasons()));
-        if (guidianRejectReplyInput != null) guidianRejectReplyInput.setText(prefs.getString(GuidianState.KEY_REJECT_REPLIES, GuidianState.defaultRejectReplies()));
     }
 
     private void saveSettings() {
@@ -267,7 +266,6 @@ public class MainActivity extends Activity {
         if (guidianTargetPackageInput != null) e.putString(GuidianState.KEY_TARGET_PACKAGE, AppPrefs.saveHomeTarget(this, guidianTargetPackageInput.getText().toString().trim()));
         if (guidianPromptInput != null) e.putString(GuidianState.KEY_PROMPTS, guidianPromptInput.getText().toString());
         if (guidianReasonInput != null) e.putString(GuidianState.KEY_REASONS, guidianReasonInput.getText().toString());
-        if (guidianRejectReplyInput != null) e.putString(GuidianState.KEY_REJECT_REPLIES, guidianRejectReplyInput.getText().toString());
         e.apply();
     }
 
