@@ -390,6 +390,9 @@
                     <EditText android:id="@+id/guidianPromptInput" android:layout_width="match_parent" android:layout_height="120dp" android:hint="每行一句归电话术" android:textSize="11sp" android:gravity="top" android:inputType="textMultiLine" />
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="拒绝快捷理由" android:textStyle="bold" android:textSize="13sp" android:textColor="#FF2D3E39" android:layout_marginTop="10dp" />
                     <EditText android:id="@+id/guidianReasonInput" android:layout_width="match_parent" android:layout_height="96dp" android:hint="每行一个拒绝理由" android:textSize="11sp" android:gravity="top" android:inputType="textMultiLine" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="拒绝后的回应文案池" android:textStyle="bold" android:textSize="13sp" android:textColor="#FF2D3E39" android:layout_marginTop="10dp" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="你点拒绝后，会从这里随机弹一句悬浮通知。可用占位符：{AI}、{USER}。" android:textSize="10sp" android:textColor="#FF7E928C" android:layout_marginTop="3dp" android:lineSpacingExtra="3dp" />
+                    <EditText android:id="@+id/guidianRejectReplyInput" android:layout_width="match_parent" android:layout_height="96dp" android:hint="每行一句拒绝后的回应" android:textSize="11sp" android:gravity="top" android:inputType="textMultiLine" />
 
                     <Button android:id="@+id/saveGuidianSettingsButton" android:layout_width="match_parent" android:layout_height="38dp" android:text="保存归电设置" android:textSize="12sp" android:textColor="#FFFFFFFF" android:background="@drawable/pill_primary" android:layout_marginTop="10dp" />
                 </LinearLayout>
