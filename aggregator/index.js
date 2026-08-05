@@ -3,6 +3,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { randomUUID } from 'crypto';
 
 const UPSTREAMS = [
@@ -66,7 +67,7 @@ async function main() {
     next();
   });
 
-  // OAuth metadata - 告诉 Claude 不需要认证
+  // OAuth metadata
   app.get('/.well-known/oauth-authorization-server', (req, res) => {
     const base = `${req.protocol}://${req.hostname}`;
     res.json({
@@ -83,8 +84,7 @@ async function main() {
     res.json({ ok: true, tools: allTools.length });
   });
 
-  // 处理 GET /mcp (SSE 或探测)
-  app.get('/mcp', (req, res) => {
+  app.get('/mcp', (_req, res) => {
     res.status(405).json({ error: 'Use POST for MCP' });
   });
 
@@ -94,9 +94,9 @@ async function main() {
       { capabilities: { tools: {} } }
     );
 
-    server.setRequestHandler('tools/list', async () => ({ tools: allTools }));
+    server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: allTools }));
 
-    server.setRequestHandler('tools/call', async (request) => {
+    server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
       const entry = toolMap.get(name);
       if (!entry) throw new Error(`未知工具: ${name}`);
@@ -112,8 +112,7 @@ async function main() {
     await transport.handleRequest(req, res, req.body);
   });
 
-  // DELETE /mcp (session 清理)
-  app.delete('/mcp', async (req, res) => {
+  app.delete('/mcp', (_req, res) => {
     res.status(200).json({ ok: true });
   });
 
