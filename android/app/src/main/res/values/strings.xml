@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">掌心窗</string>
-    <string name="accessibility_name">掌心窗服务</string>
-    <string name="accessibility_desc">在你开启服务后，允许掌心窗按你自己的服务器命令截图、读取当前页面文字、执行返回/主页/点击/滑动/打开 App、应用门禁拦截，以及设置你明确要求的闹钟。</string>
+    <string name="app_name">from him</string>
+    <string name="accessibility_name">from him服务</string>
+    <string name="accessibility_desc">在你开启服务后，允许 from him 按你自己的服务器命令截图、读取当前页面文字、执行返回/主页/点击/滑动/打开 App、应用门禁拦截，以及设置你明确要求的闹钟。</string>
 </resources>
