@@ -470,6 +470,37 @@ function makeServer() {
     return { content: [{ type: "text", text: JSON.stringify({ queued: result, observed_status: observed?.command || null }, null, 2) }] };
   });
 
+  server.tool("wait_for_guidian_response", "在 trigger_guidian 之后调用，阻塞等待用户在手机上对归电弹窗做出回应（接受/拒绝），一检测到状态变化就立刻返回结果，不用把'等结果'拆成下一轮对话。超时仍未响应也会返回，标记为 timeout。", {
+    device_id: z.string().default(DEFAULT_DEVICE),
+    timeout_seconds: z.number().int().min(5).max(120).default(60)
+  }, async ({ device_id = DEFAULT_DEVICE, timeout_seconds = 60 }) => {
+    const baselineRes = await linjianFetch(`/api/guidian_state?device_id=${encodeURIComponent(device_id)}`);
+    const baselineData = await baselineRes.json();
+    const g0 = baselineData?.guidian_state || {};
+    const baselineReject = Number(g0.last_reject_at_ms || 0);
+    const baselineReturn = Number(g0.last_return_at_ms || 0);
+    const deadline = Date.now() + timeout_seconds * 1000;
+    let last = g0;
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const res = await linjianFetch(`/api/guidian_state?device_id=${encodeURIComponent(device_id)}`).catch(() => null);
+      if (!res) continue;
+      const data = await res.json().catch(() => null);
+      if (!data) continue;
+      const g = data?.guidian_state || {};
+      last = g;
+      const rejectAt = Number(g.last_reject_at_ms || 0);
+      const returnAt = Number(g.last_return_at_ms || 0);
+      if (rejectAt > baselineReject) {
+        return { content: [{ type: "text", text: JSON.stringify({ ok: true, resolved: true, outcome: "rejected", reason: g.last_reject_reason || "", guidian_state: g }, null, 2) }] };
+      }
+      if (returnAt > baselineReturn) {
+        return { content: [{ type: "text", text: JSON.stringify({ ok: true, resolved: true, outcome: "returned", source: g.last_return_source || "", guidian_state: g }, null, 2) }] };
+      }
+    }
+    return { content: [{ type: "text", text: JSON.stringify({ ok: true, resolved: false, outcome: "timeout", guidian_state: last }, null, 2) }] };
+  });
+
   server.tool("mark_guidian_returned", "手动标记用户已经回到归电目标 App。一般不需要用；接受归电或打开目标 App 会自动记录。", { source: z.string().default("mcp"), device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8) }, async ({ source = "mcp", device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
     const result = await postCommand({ action: "mark_guidian_returned", device_id, source, payload: { source } });
     const id = result?.command?.id;
