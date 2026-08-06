@@ -181,8 +181,6 @@ public class GuidianActivity extends Activity {
     private void submitReason(String reason) {
         GuidianState.reject(this, reason);
         Toast.makeText(this, "好，" + AppPrefs.partnerName(this) + "晚点再来", Toast.LENGTH_SHORT).show();
-        String reply = GuidianState.pickRejectReply(this);
-        CompanionService.showReminderNotification(this, AppPrefs.partnerName(this), reply);
         finish();
     }
 
