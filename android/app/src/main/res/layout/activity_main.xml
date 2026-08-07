@@ -19,7 +19,7 @@
             android:id="@+id/headerTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="掌心窗"
+            android:text="from him"
             android:textStyle="bold"
             android:textSize="23sp"
             android:letterSpacing="0.02"
