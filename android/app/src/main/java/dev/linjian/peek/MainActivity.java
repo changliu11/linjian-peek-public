@@ -87,7 +87,7 @@ public class MainActivity extends Activity {
         boolean clearedLegacyServer = AppPrefs.migrateLegacyConfig(this);
         loadSettings();
 
-        DebugState.append(this, "掌心窗 v0.3.5.0-public 归电感官版已打开");
+        DebugState.append(this, "from him v0.3.5.0-public 归电感官版已打开");
         if (clearedLegacyServer) DebugState.append(this, "已保留服务器地址。v0.3.5.0 不再按域名名称拦截 Render 地址。");
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 13);
         serviceRunning = CompanionService.isRunning();
@@ -281,7 +281,7 @@ public class MainActivity extends Activity {
     }
     private void updateHeader(String tab) {
         if (headerTitle == null || headerSubtitle == null) return;
-        if ("life".equals(tab)) { headerTitle.setText("掌心窗"); headerSubtitle.setText("v0.3.5.0 · 新增归电感官与远程设置。"); }
+        if ("life".equals(tab)) { headerTitle.setText("from him"); headerSubtitle.setText("v0.3.5.0 · 新增归电感官与远程设置。"); }
         else if ("see".equals(tab)) { headerTitle.setText("感官"); headerSubtitle.setText("看见、归电和轻量状态，都收在这里。"); }
         else if ("gate".equals(tab)) { headerTitle.setText("守护"); headerSubtitle.setText("门禁、天气和提醒，平时收进抽屉。"); }
         else { headerTitle.setText("设置"); headerSubtitle.setText("主题、权限和调试都放这里。"); }
@@ -424,7 +424,7 @@ public class MainActivity extends Activity {
         saveSettings();
         String url = serverUrl == null ? "" : AppPrefs.cleanServer(serverUrl.getText().toString().trim()); String token = tokenInput == null ? "" : tokenInput.getText().toString().trim();
         if (url.isEmpty() || token.isEmpty()) { Toast.makeText(this, "请填写服务器地址和 Token", Toast.LENGTH_SHORT).show(); return; }
-        if (ScreenshotService.getInstance() == null) { DebugState.append(this, "启动失败：无障碍服务未连接"); Toast.makeText(this, "请先开启掌心窗无障碍服务", Toast.LENGTH_LONG).show(); openAccessibilitySettings(); return; }
+        if (ScreenshotService.getInstance() == null) { DebugState.append(this, "启动失败：无障碍服务未连接"); Toast.makeText(this, "请先开启from him无障碍服务", Toast.LENGTH_LONG).show(); openAccessibilitySettings(); return; }
         getSharedPreferences(AppPrefs.PREFS, MODE_PRIVATE).edit().putBoolean("user_stopped", false).apply(); requestIgnoreBatteryOptimization();
         Intent intent = new Intent(this, CompanionService.class); intent.putExtra("server_url", url); intent.putExtra("token", token);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent); else startService(intent);
@@ -439,17 +439,17 @@ public class MainActivity extends Activity {
         if (ss == null) { DebugState.append(this, "测试失败：无障碍服务未连接"); Toast.makeText(this, "先开启无障碍服务", Toast.LENGTH_LONG).show(); openAccessibilitySettings(); return; }
         String partner = AppPrefs.partnerName(this); DebugState.append(this, "给" + partner + "看一眼：开始截图上传"); ss.doScreenshot(url, token); Toast.makeText(this, "正在给" + partner + "看一眼", Toast.LENGTH_SHORT).show(); updateUI();
     }
-    private void testAlarm() { Calendar c = Calendar.getInstance(); c.add(Calendar.MINUTE, 1); try { Intent i = new Intent(AlarmClock.ACTION_SET_ALARM); i.putExtra(AlarmClock.EXTRA_HOUR, c.get(Calendar.HOUR_OF_DAY)); i.putExtra(AlarmClock.EXTRA_MINUTES, c.get(Calendar.MINUTE)); i.putExtra(AlarmClock.EXTRA_MESSAGE, "掌心窗测试闹钟：" + AppPrefs.userName(this) + "看到了就说明成功"); i.putExtra(AlarmClock.EXTRA_VIBRATE, true); i.putExtra(AlarmClock.EXTRA_SKIP_UI, true); startActivity(i); DebugState.append(this, "已请求设置一分钟后的测试闹钟"); } catch (Exception e) { DebugState.append(this, "测试闹钟失败：" + e.getClass().getSimpleName()); Toast.makeText(this, "闹钟 App 没接住请求", Toast.LENGTH_SHORT).show(); } }
-    private void testNotification() { saveSettings(); boolean ok = CompanionService.showReminderNotification(this, "掌心窗悬浮横幅测试", AppPrefs.userName(this) + "看到了顶部横幅，就说明通知通道正常。"); DebugState.append(this, ok ? "已发送悬浮横幅测试提醒" : "悬浮横幅/通知失败：请允许掌心窗发送通知"); Toast.makeText(this, ok ? "已发送横幅测试" : "请先允许通知权限", Toast.LENGTH_SHORT).show(); updateUI(); }
+    private void testAlarm() { Calendar c = Calendar.getInstance(); c.add(Calendar.MINUTE, 1); try { Intent i = new Intent(AlarmClock.ACTION_SET_ALARM); i.putExtra(AlarmClock.EXTRA_HOUR, c.get(Calendar.HOUR_OF_DAY)); i.putExtra(AlarmClock.EXTRA_MINUTES, c.get(Calendar.MINUTE)); i.putExtra(AlarmClock.EXTRA_MESSAGE, "from him测试闹钟：" + AppPrefs.userName(this) + "看到了就说明成功"); i.putExtra(AlarmClock.EXTRA_VIBRATE, true); i.putExtra(AlarmClock.EXTRA_SKIP_UI, true); startActivity(i); DebugState.append(this, "已请求设置一分钟后的测试闹钟"); } catch (Exception e) { DebugState.append(this, "测试闹钟失败：" + e.getClass().getSimpleName()); Toast.makeText(this, "闹钟 App 没接住请求", Toast.LENGTH_SHORT).show(); } }
+    private void testNotification() { saveSettings(); boolean ok = CompanionService.showReminderNotification(this, "from him悬浮横幅测试", AppPrefs.userName(this) + "看到了顶部横幅，就说明通知通道正常。"); DebugState.append(this, ok ? "已发送悬浮横幅测试提醒" : "悬浮横幅/通知失败：请允许掌心窗发送通知"); Toast.makeText(this, ok ? "已发送横幅测试" : "请先允许通知权限", Toast.LENGTH_SHORT).show(); updateUI(); }
     private void addPackageAlias() { String alias = appAliasInput == null ? "" : appAliasInput.getText().toString().trim(); String pkg = appPackageInput == null ? "" : appPackageInput.getText().toString().trim(); if (alias.isEmpty()) { Toast.makeText(this, "先填应用名/昵称", Toast.LENGTH_SHORT).show(); return; } if (!AppPrefs.isPackageLike(pkg)) { Toast.makeText(this, "包名格式不对，例如 com.xingin.xhs", Toast.LENGTH_LONG).show(); return; } AppPrefs.saveCustomApp(this, alias, pkg); DebugState.append(this, "已保存可打开应用：" + alias + " → " + pkg); Toast.makeText(this, "已添加包名", Toast.LENGTH_SHORT).show(); updateUI(); }
     private void addGateApp() { String alias = gateAliasInput == null ? "" : gateAliasInput.getText().toString().trim(); String pkg = gatePackageInput == null ? "" : gatePackageInput.getText().toString().trim(); if (alias.isEmpty()) { Toast.makeText(this, "先填应用名/昵称", Toast.LENGTH_SHORT).show(); return; } if (!AppPrefs.isPackageLike(pkg)) { Toast.makeText(this, "包名格式不对，例如 com.xingin.xhs", Toast.LENGTH_LONG).show(); return; } AppGate.addGateApp(this, alias, pkg); DebugState.append(this, "已保存门禁应用：" + alias + " → " + pkg); Toast.makeText(this, "已添加到应用门禁", Toast.LENGTH_SHORT).show(); updateUI(); }
     private void testCustomPackage() { String pkg = appPackageInput == null ? "" : appPackageInput.getText().toString().trim(); if (!AppPrefs.isPackageLike(pkg)) { Toast.makeText(this, "先填正确包名", Toast.LENGTH_SHORT).show(); return; } openPackage(pkg); }
-    private void testLocalSequence() { boolean ok1 = CompanionService.showReminderNotification(this, "掌心窗连招测试", "先发悬浮横幅，再回目标 App。日志会写清每一步。"); String result = CompanionService.openPackageResult(this, AppPrefs.homeTargetPackage(this)); DebugState.append(this, "本机连招测试：popup=" + ok1 + "；open=" + result); updateUI(); }
+    private void testLocalSequence() { boolean ok1 = CompanionService.showReminderNotification(this, "from him连招测试", "先发悬浮横幅，再回目标 App。日志会写清每一步。"); String result = CompanionService.openPackageResult(this, AppPrefs.homeTargetPackage(this)); DebugState.append(this, "本机连招测试：popup=" + ok1 + "；open=" + result); updateUI(); }
     private boolean openPackage(String pkg) { String result = CompanionService.openPackageResult(this, pkg); boolean ok = result.startsWith("opened_"); DebugState.append(this, "本机打开 App：" + result); Toast.makeText(this, ok ? "已尝试打开" : ("打开失败：" + result), Toast.LENGTH_SHORT).show(); updateUI(); return ok; }
     private void toast(boolean ok) { Toast.makeText(this, ok ? "执行成功" : "执行失败，请检查权限/包名", Toast.LENGTH_SHORT).show(); updateUI(); }
     private int parseInterval(String raw) { try { int v = Integer.parseInt(raw); if (v < 700) return 700; if (v > 10000) return 10000; return v; } catch (Exception e) { return 1500; } }
     private int parseInt(String raw, int def, int min, int max) { try { int v = Integer.parseInt(raw); if (v < min) return min; if (v > max) return max; return v; } catch (Exception e) { return def; } }
-    private void openAccessibilitySettings() { try { startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); } catch (Exception e) { Toast.makeText(this, "设置 → 无障碍 → 掌心窗", Toast.LENGTH_LONG).show(); } }
+    private void openAccessibilitySettings() { try { startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); } catch (Exception e) { Toast.makeText(this, "设置 → 无障碍 → from him", Toast.LENGTH_LONG).show(); } }
     private void openUsageAccessSettings() { try { startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)); } catch (Exception e) { Toast.makeText(this, "设置 → 应用 → 特殊权限 → 使用情况访问", Toast.LENGTH_LONG).show(); } }
     private void requestIgnoreBatteryOptimization() { if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return; try { PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE); if (pm != null && !pm.isIgnoringBatteryOptimizations(getPackageName())) { Intent bi = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS); bi.setData(Uri.parse("package:" + getPackageName())); startActivity(bi); } } catch (Exception ignored) { } }
 
@@ -587,8 +587,8 @@ public class MainActivity extends Activity {
         try {
             DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
             DownloadManager.Request req = new DownloadManager.Request(Uri.parse(url));
-            req.setTitle("掌心窗 v" + latestVersionName);
-            req.setDescription("正在下载掌心窗最新版 APK");
+            req.setTitle("from him v" + latestVersionName);
+            req.setDescription("正在下载from him最新版 APK");
             req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
             req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "Zhangxinchuang-public-v" + latestVersionName + ".apk");
             if (dm != null) {
