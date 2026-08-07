@@ -13,7 +13,7 @@ public class ReminderActivity extends Activity {
         super.onCreate(savedInstanceState);
         String title = getIntent().getStringExtra("title");
         String message = getIntent().getStringExtra("message");
-        if (title == null || title.trim().isEmpty()) title = "掌心窗提醒";
+        if (title == null || title.trim().isEmpty()) title = "from him提醒";
         if (message == null || message.trim().isEmpty()) message = AppPrefs.userName(this) + "，看一眼这里。";
 
         LinearLayout root = new LinearLayout(this);
