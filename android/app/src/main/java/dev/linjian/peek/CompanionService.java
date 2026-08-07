@@ -45,7 +45,7 @@ public class CompanionService extends Service {
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && "STOP".equals(intent.getAction())) { stopSelf(); return START_NOT_STICKY; }
         createNotificationChannel();
-        startForeground(NOTIFICATION_ID, buildNotification("已启动，等待掌心窗命令"));
+        startForeground(NOTIFICATION_ID, buildNotification("已启动，等待from him命令"));
         if (intent != null) {
             serverUrl = ScreenshotService.normalizeUrl(AppPrefs.cleanServer(intent.getStringExtra("server_url")));
             token = intent.getStringExtra("token");
@@ -58,7 +58,7 @@ public class CompanionService extends Service {
             DebugState.append(this, "服务启动失败：服务器地址或 Token 为空");
             stopSelf(); return START_NOT_STICKY;
         }
-        DebugState.append(this, "掌心窗 v0.3.5.0 服务已启动，实际连接地址：" + serverUrl);
+        DebugState.append(this, "from him v0.3.5.0 服务已启动，实际连接地址：" + serverUrl);
         if (!running) { running = true; startPolling(); } else DebugState.append(this, "服务已在运行，继续轮询");
         return START_STICKY;
     }
@@ -113,7 +113,7 @@ public class CompanionService extends Service {
             if (raw == null || raw == JSONObject.NULL) return;
             if (raw instanceof String) {
                 String s = (String) raw;
-                if ("peek".equals(s)) executeCommand(ctx, "", "peek", "", "", 0,0,0,0,0,0,350,0,0,"掌心窗", "掌心窗截图", true, serverUrl, token);
+                if ("peek".equals(s)) executeCommand(ctx, "", "peek", "", "", 0,0,0,0,0,0,350,0,0,"from him", "from him截图", true, serverUrl, token);
                 return;
             }
             JSONObject cmd = (JSONObject) raw;
@@ -130,8 +130,8 @@ public class CompanionService extends Service {
             long duration = cmd.optLong("duration", 350);
             int hour = cmd.optInt("hour", -1);
             int minute = cmd.optInt("minute", -1);
-            String title = cmd.optString("title", "掌心窗提醒");
-            String message = cmd.optString("message", "掌心窗闹钟");
+            String title = cmd.optString("title", "from him提醒");
+            String message = cmd.optString("message", "from him闹钟");
             boolean vibrate = cmd.optBoolean("vibrate", true);
             boolean skipUi = cmd.optBoolean("skip_ui", true);
             String targetText = cmd.optString("target_text", cmd.optString("query", ""));
@@ -261,7 +261,7 @@ public class CompanionService extends Service {
                 float x2 = (float) step.optDouble("x2", 0); float y2 = (float) step.optDouble("y2", 0);
                 long duration = step.optLong("duration", 350);
                 int hour = step.optInt("hour", -1); int minute = step.optInt("minute", -1);
-                String title = step.optString("title", "掌心窗提醒");
+                String title = step.optString("title", "from him提醒");
                 String message = step.optString("message", AppPrefs.userName(ctx) + "，看一眼这里。");
                 boolean vibrate = step.optBoolean("vibrate", true);
                 boolean skipUi = step.optBoolean("skip_ui", true);
@@ -355,7 +355,7 @@ public class CompanionService extends Service {
             if (Build.VERSION.SDK_INT >= 33 && ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return false;
             NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm == null) return false;
-            String safeTitle = (title == null || title.trim().isEmpty()) ? "掌心窗提醒" : title.trim();
+            String safeTitle = (title == null || title.trim().isEmpty()) ? "from him提醒" : title.trim();
             String safeMessage = (message == null || message.trim().isEmpty()) ? (AppPrefs.userName(ctx) + "，看一眼这里。") : message.trim();
 
             Intent detail = new Intent(ctx, ReminderActivity.class);
@@ -365,7 +365,7 @@ public class CompanionService extends Service {
             PendingIntent pi = PendingIntent.getActivity(ctx, (int)(System.currentTimeMillis() % 100000), detail, Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT : PendingIntent.FLAG_UPDATE_CURRENT);
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                NotificationChannel channel = new NotificationChannel(REMINDER_CHANNEL_ID, "掌心窗悬浮横幅提醒", NotificationManager.IMPORTANCE_HIGH);
+                NotificationChannel channel = new NotificationChannel(REMINDER_CHANNEL_ID, "from him悬浮横幅提醒", NotificationManager.IMPORTANCE_HIGH);
                 channel.setDescription("像微信消息一样从顶部弹出的横幅提醒；点开后可进入详情页。");
                 channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
                 channel.enableVibration(true);
@@ -396,7 +396,7 @@ public class CompanionService extends Service {
             Intent i = new Intent(AlarmClock.ACTION_SET_ALARM);
             i.putExtra(AlarmClock.EXTRA_HOUR, hour);
             i.putExtra(AlarmClock.EXTRA_MINUTES, minute);
-            i.putExtra(AlarmClock.EXTRA_MESSAGE, message == null || message.length() == 0 ? "掌心窗闹钟" : message);
+            i.putExtra(AlarmClock.EXTRA_MESSAGE, message == null || message.length() == 0 ? "from him闹钟" : message);
             i.putExtra(AlarmClock.EXTRA_VIBRATE, vibrate);
             i.putExtra(AlarmClock.EXTRA_SKIP_UI, skipUi);
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -433,7 +433,7 @@ public class CompanionService extends Service {
         return new String(bos.toByteArray(), "UTF-8");
     }
 
-    private void createNotificationChannel() { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { NotificationManager nm = getSystemService(NotificationManager.class); NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "掌心窗", NotificationManager.IMPORTANCE_LOW); channel.setDescription("掌心窗正在等待你授权的截图与手机动作请求"); nm.createNotificationChannel(channel); NotificationChannel reminder = new NotificationChannel(REMINDER_CHANNEL_ID, "掌心窗悬浮横幅提醒", NotificationManager.IMPORTANCE_HIGH); reminder.setDescription("来自掌心窗的悬浮横幅、生活提醒与回家模式"); reminder.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC); reminder.enableVibration(true); nm.createNotificationChannel(reminder); } }
-    private Notification buildNotification(String text) { Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ? new Notification.Builder(this, CHANNEL_ID) : new Notification.Builder(this); return builder.setContentTitle("掌心窗运行中").setContentText(text).setSmallIcon(android.R.drawable.ic_menu_view).setOngoing(true).build(); }
+    private void createNotificationChannel() { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { NotificationManager nm = getSystemService(NotificationManager.class); NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "from him", NotificationManager.IMPORTANCE_LOW); channel.setDescription("from him正在等待你授权的截图与手机动作请求"); nm.createNotificationChannel(channel); NotificationChannel reminder = new NotificationChannel(REMINDER_CHANNEL_ID, "from him悬浮横幅提醒", NotificationManager.IMPORTANCE_HIGH); reminder.setDescription("来自from him的悬浮横幅、生活提醒与回家模式"); reminder.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC); reminder.enableVibration(true); nm.createNotificationChannel(reminder); } }
+    private Notification buildNotification(String text) { Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ? new Notification.Builder(this, CHANNEL_ID) : new Notification.Builder(this); return builder.setContentTitle("from him运行中").setContentText(text).setSmallIcon(android.R.drawable.ic_menu_view).setOngoing(true).build(); }
     @Override public void onDestroy() { running = false; DebugState.append(this, "服务已销毁/停止"); if (pollThread != null) pollThread.quitSafely(); super.onDestroy(); }
 }
