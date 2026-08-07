@@ -369,7 +369,7 @@ public class GuidianState {
             if (nm == null) return false;
             String ai = AppPrefs.partnerName(ctx);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "掌心窗归电", NotificationManager.IMPORTANCE_HIGH);
+                NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "from him归电", NotificationManager.IMPORTANCE_HIGH);
                 channel.setDescription(ai + "来电式全屏提醒");
                 channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
                 channel.enableVibration(true);
