@@ -50,7 +50,7 @@ public class GuidianActivity extends Activity {
         body.setPadding(dp(28), dp(58), dp(28), dp(34));
         root.addView(body, new FrameLayout.LayoutParams(-1, -1));
 
-        TextView top = text("掌心窗 · 归电", 12, 0xCCFFFFFF, false);
+        TextView top = text("from him · 归电", 12, 0xCCFFFFFF, false);
         top.setGravity(Gravity.CENTER);
         body.addView(top, new LinearLayout.LayoutParams(-1, dp(24)));
 
