@@ -88,6 +88,24 @@ async function waitCommand(id, seconds = 8) {
   return last;
 }
 
+// 精简版返回结果：只保留 ok/action/status/result 等真正有用的字段，
+// 不再把 queued.command 和 observed_status 两份几乎一样的完整命令对象都塞进上下文。
+function summarize(queued, observed, extra = {}) {
+  const q = queued?.command || queued || {};
+  const o = observed?.command || observed || null;
+  const c = o || q;
+  const out = { ok: c.status === "completed" ? true : c.status === "failed" ? false : (queued?.ok ?? true) };
+  out.action = c.action;
+  out.status = c.status || "queued";
+  if (c.result) out.result = c.result;
+  if (c.payload && c.payload.blocked_reason) out.blocked_reason = c.payload.blocked_reason;
+  return { ...out, ...extra };
+}
+
+function j(obj) {
+  return { content: [{ type: "text", text: JSON.stringify(obj) }] };
+}
+
 async function latestInfo() {
   const res = await linjianFetch("/api/latest.json");
   return await res.json();
@@ -160,7 +178,7 @@ function makeServer() {
     const result = await postCommand({ action: "get_screen_nodes", device_id });
     const id = result?.command?.id;
     const observed = id ? await waitCommand(id, wait_seconds) : null;
-    return { content: [{ type: "text", text: JSON.stringify({ queued: result, observed_status: observed?.command || null, note: "result 是节点数组 JSON 字符串，包含 text/left/top/right/bottom/center_x/center_y/clickable。" }, null, 2) }] };
+    return j(summarize(result, observed, { note: "result 是节点数组 JSON 字符串，包含 text/left/top/right/bottom/center_x/center_y/clickable。" }));
   });
 
   server.tool("tap_text", "按当前屏幕文字精准点击。会寻找包含/完全匹配 target_text 的无障碍节点，优先点击可点击父节点，否则点击文字中心坐标。", {
@@ -169,7 +187,7 @@ function makeServer() {
     const result = await postCommand({ action: "tap_text", device_id, target_text, match, index, payload: { target_text, match, index } });
     const id = result?.command?.id;
     const observed = id ? await waitCommand(id, wait_seconds) : null;
-    return { content: [{ type: "text", text: JSON.stringify({ queued: result, observed_status: observed?.command || null }, null, 2) }] };
+    return j(summarize(result, observed));
   });
 
   server.tool("input_text", "把文字输入到当前已聚焦或第一个可编辑输入框。适合评论草稿；不会自动点击发送。", {
@@ -178,7 +196,7 @@ function makeServer() {
     const result = await postCommand({ action: "input_text", device_id, text, append, payload: { text, append } });
     const id = result?.command?.id;
     const observed = id ? await waitCommand(id, wait_seconds) : null;
-    return { content: [{ type: "text", text: JSON.stringify({ queued: result, observed_status: observed?.command || null, note: "只输入草稿，不会发送。发送前需要用户明确确认。" }, null, 2) }] };
+    return j(summarize(result, observed, { note: "只输入草稿，不会发送。发送前需要用户明确确认。" }));
   });
 
   server.tool("draft_xhs_comment", "在当前小红书帖子里尝试打开评论输入框并填入评论草稿，但不点击发送。需要用户明确确认后才能再点发送。", {
@@ -192,7 +210,7 @@ function makeServer() {
     const result = await postCommand({ action: "run_sequence", device_id, steps, payload: { steps, stop_on_error: false }, stop_on_error: false });
     const id = result?.command?.id;
     const observed = id ? await waitCommand(id, wait_seconds) : null;
-    return { content: [{ type: "text", text: JSON.stringify({ queued: result, observed_status: observed?.command || null, safety_note: "这是草稿模式，不会自动发送评论。" }, null, 2) }] };
+    return j(summarize(result, observed, { safety_note: "这是草稿模式，不会自动发送评论。" }));
   });
 
   server.tool("xhs_comment", "小红书评论助手：mode=manual 时只写入草稿，交给用户手动点发送；mode=auto 时会在评论末尾注明 author_tag，然后自动点击发送。仅在用户已明确授权自动发送时使用 auto。", {
@@ -216,13 +234,11 @@ function makeServer() {
     const result = await postCommand({ action: "run_sequence", device_id, steps, payload: { steps, stop_on_error: false }, stop_on_error: false });
     const id = result?.command?.id;
     const observed = id ? await waitCommand(id, wait_seconds) : null;
-    return { content: [{ type: "text", text: JSON.stringify({
+    return j(summarize(result, observed, {
       mode: shouldSend ? "auto" : "manual",
       final_text: finalText,
-      queued: result,
-      observed_status: observed?.command || null,
       note: shouldSend ? "自动发送模式：评论已追加 author_tag 并尝试点击发送。" : "手动发送模式：只写入草稿，不点击发送。"
-    }, null, 2) }] };
+    }));
   });
 
   server.tool("send_visible_comment_after_confirmation", "在用户确认发送当前可见评论后点击“发送”。如果需要我直接发，优先使用 xhs_comment 的 auto 模式，并在评论里注明作者。", {
@@ -231,13 +247,13 @@ function makeServer() {
     const result = await postCommand({ action: "tap_text", device_id, target_text: "发送", match: "contains", payload: { target_text: "发送", match: "contains" } });
     const id = result?.command?.id;
     const observed = id ? await waitCommand(id, wait_seconds) : null;
-    return { content: [{ type: "text", text: JSON.stringify({ queued: result, observed_status: observed?.command || null }, null, 2) }] };
+    return j(summarize(result, observed));
   });
 
   server.tool("get_life_state", "读取掌心窗生活状态层：电量、充电、网络、当前 App、今日屏幕时间、解锁次数、当前天气地区等。默认不截图。", { device_id: z.string().default(DEFAULT_DEVICE) }, async ({ device_id = DEFAULT_DEVICE }) => {
     const res = await linjianFetch(`/api/life_state?device_id=${encodeURIComponent(device_id)}`);
     const data = await res.json();
-    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+    return { content: [{ type: "text", text: JSON.stringify(data) }] };
   });
 
   server.tool("get_weather_state", "按掌心窗当前天气地区查询实时天气，并生成出门建议。不会截图；如果手机端没有设置当前地区，会返回缺少城市。", { device_id: z.string().default(DEFAULT_DEVICE), city: z.string().default("") }, async ({ device_id = DEFAULT_DEVICE, city = "" }) => {
@@ -334,7 +350,7 @@ function makeServer() {
     const result = await postCommand({ action: "run_sequence", device_id, steps, payload: { steps, stop_on_error }, stop_on_error });
     const id = result?.command?.id;
     const observed = id ? await waitCommand(id, wait_seconds) : null;
-    return { content: [{ type: "text", text: JSON.stringify({ queued: result, observed_status: observed?.command || null, note: "手机端会在 result 里写清每一步：index/label/action/ok/detail。" }, null, 2) }] };
+    return j(summarize(result, observed, { note: "手机端会在 result 里写清每一步：index/label/action/ok/detail。" }));
   });
 
   server.tool("run_preset", "执行掌心窗预设连招：come_home 提醒并打开目标 App、open_xhs 打开小红书、recents_to_xhs 最近任务后点坐标、bedtime_back 睡前回家。target_app 可填 ChatGPT / Claude / Gemini / 自定义昵称。", {
@@ -371,7 +387,7 @@ function makeServer() {
     const result = await postCommand({ action: "run_sequence", device_id, steps, payload: { steps, stop_on_error: true }, stop_on_error: true });
     const id = result?.command?.id;
     const observed = id ? await waitCommand(id, wait_seconds) : null;
-    return { content: [{ type: "text", text: JSON.stringify({ preset: p, steps, queued: result, observed_status: observed?.command || null }, null, 2) }] };
+    return j({ preset: p, steps, ...summarize(result, observed) });
   });
 
   server.tool("save_known_app", "把一个应用昵称和包名保存到手机端应用白名单，之后 open_app 可直接用昵称打开。", {
@@ -383,7 +399,7 @@ function makeServer() {
     const result = await postCommand({ action: "save_known_app", alias, package: pkg, app: alias, device_id, payload: { alias, package: pkg } });
     const id = result?.command?.id;
     const observed = id ? await waitCommand(id, wait_seconds) : null;
-    return { content: [{ type: "text", text: JSON.stringify({ queued: result, observed_status: observed?.command || null }, null, 2) }] };
+    return j(summarize(result, observed));
   });
 
 
@@ -391,7 +407,7 @@ function makeServer() {
     const result = await postCommand(payload);
     const id = result?.command?.id;
     const observed = id ? await waitCommand(id, wait_seconds) : null;
-    return { content: [{ type: "text", text: JSON.stringify({ queued: result, observed_status: observed?.command || null }, null, 2) }] };
+    return j(summarize(result, observed));
   }
 
   server.tool("lock_app", "应用门禁：锁定一个 App。锁多久、理由、留言和紧急口令由对方决定；手机端会在打开该 App 时弹锁定页。", {
@@ -467,7 +483,7 @@ function makeServer() {
     const result = await postCommand({ action: "trigger_guidian", device_id, payload: {} });
     const id = result?.command?.id;
     const observed = id ? await waitCommand(id, wait_seconds) : null;
-    return { content: [{ type: "text", text: JSON.stringify({ queued: result, observed_status: observed?.command || null }, null, 2) }] };
+    return j(summarize(result, observed));
   });
 
   server.tool("wait_for_guidian_response", "在 trigger_guidian 之后调用，阻塞等待用户在手机上对归电弹窗做出回应（接受/拒绝），一检测到状态变化就立刻返回结果，不用把'等结果'拆成下一轮对话。超时仍未响应也会返回，标记为 timeout。", {
@@ -505,7 +521,7 @@ function makeServer() {
     const result = await postCommand({ action: "mark_guidian_returned", device_id, source, payload: { source } });
     const id = result?.command?.id;
     const observed = id ? await waitCommand(id, wait_seconds) : null;
-    return { content: [{ type: "text", text: JSON.stringify({ queued: result, observed_status: observed?.command || null }, null, 2) }] };
+    return j(summarize(result, observed));
   });
 
   server.tool("set_guidian_config", "在用户已授权时调整归电设置。可改开关、间隔、冷却、每日上限、安静时段、目标 App、AI 名字、主题和文案池。", {
@@ -532,7 +548,7 @@ function makeServer() {
     const result = await postCommand({ action: "set_guidian_config", device_id, payload, ...payload });
     const id = result?.command?.id;
     const observed = id ? await waitCommand(id, wait_seconds) : null;
-    return { content: [{ type: "text", text: JSON.stringify({ queued: result, observed_status: observed?.command || null }, null, 2) }] };
+    return j(summarize(result, observed));
   });
 
   server.tool("get_unlock_requests", "应用门禁：查看手机锁定页提交到后端的解锁申请。", {}, async () => {
