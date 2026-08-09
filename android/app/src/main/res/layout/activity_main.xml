@@ -357,11 +357,12 @@
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="6dp">
                         <Button android:id="@+id/themeNightButton" android:layout_width="0dp" android:layout_height="30dp" android:layout_weight="1" android:text="夜航黑" android:textSize="11sp" android:background="@drawable/pill_soft" />
                         <Button android:id="@+id/themeMintButton" android:layout_width="0dp" android:layout_height="30dp" android:layout_weight="1" android:text="薄荷透明" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginLeft="5dp" />
+                        <View android:layout_width="0dp" android:layout_height="30dp" android:layout_weight="1" android:layout_marginLeft="5dp" />
                     </LinearLayout>
                 </LinearLayout>
 
 
-                <Button android:id="@+id/drawerGuidianSettingsButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="归电设置  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginBottom="8dp" />
+                <Button android:id="@+id/drawerGuidianSettingsButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="归电设置  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:paddingLeft="16dp" android:layout_marginBottom="8dp" />
                 <LinearLayout android:id="@+id/drawerGuidianSettings" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/card_bg" android:visibility="gone" android:layout_marginBottom="8dp">
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="归电设置" android:textStyle="bold" android:textSize="16sp" android:textColor="#FF2D3E39" />
                     <TextView android:id="@+id/guidianSettingsStatusText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="设置加载中…" android:textSize="11sp" android:textColor="#FF7E928C" android:layout_marginTop="6dp" android:lineSpacingExtra="4dp" />
@@ -398,7 +399,7 @@
                 </LinearLayout>
 
 
-                <Button android:id="@+id/drawerVersionButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="版本与更新  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginBottom="8dp" />
+                <Button android:id="@+id/drawerVersionButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="版本与更新  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:paddingLeft="16dp" android:layout_marginBottom="8dp" />
                 <LinearLayout android:id="@+id/drawerVersion" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/card_bg" android:visibility="gone" android:layout_marginBottom="8dp">
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="版本与更新" android:textStyle="bold" android:textSize="15sp" android:textColor="#FF2D3E39" />
                     <TextView android:id="@+id/versionStatusText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="当前版本 v0.3.4.6" android:textSize="11sp" android:textColor="#FF596D66" android:layout_marginTop="6dp" android:lineSpacingExtra="3dp" />
@@ -408,7 +409,7 @@
                     <Button android:id="@+id/downloadUpdateButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="下载最新版" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginTop="6dp" />
                 </LinearLayout>
 
-                <Button android:id="@+id/drawerConnectionButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="连接设置  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginBottom="8dp" />
+                <Button android:id="@+id/drawerConnectionButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="连接设置  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:paddingLeft="16dp" android:layout_marginBottom="8dp" />
                 <LinearLayout android:id="@+id/drawerConnection" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/card_bg" android:visibility="gone" android:layout_marginBottom="8dp">
                     <EditText android:id="@+id/serverUrl" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="服务器地址，例如 https://xxx.onrender.com" android:textSize="11sp" android:singleLine="true" />
                     <EditText android:id="@+id/tokenInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="房间 Token / 密钥" android:textSize="11sp" android:singleLine="true" />
@@ -418,7 +419,7 @@
                     <EditText android:id="@+id/intervalInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="轮询间隔毫秒，默认 1500" android:textSize="11sp" android:inputType="number" android:singleLine="true" />
                 </LinearLayout>
 
-                <Button android:id="@+id/drawerPermissionButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="权限与运行  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginBottom="8dp" />
+                <Button android:id="@+id/drawerPermissionButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="权限与运行  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:paddingLeft="16dp" android:layout_marginBottom="8dp" />
                 <LinearLayout android:id="@+id/drawerPermission" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/card_bg" android:visibility="gone" android:layout_marginBottom="8dp">
                     <CheckBox android:id="@+id/foregroundPopupEnabled" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="优先用顶部横幅通知" android:textSize="11sp" />
                     <Button android:id="@+id/accessibilityButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="打开无障碍设置" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginTop="6dp" />
@@ -426,7 +427,7 @@
                     <Button android:id="@+id/toggleButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="启动服务" android:textSize="11sp" android:textColor="#FFFFFFFF" android:background="@drawable/pill_primary" android:layout_marginTop="6dp" />
                 </LinearLayout>
 
-                <Button android:id="@+id/drawerKnownAppsButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="应用包名管理  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginBottom="8dp" />
+                <Button android:id="@+id/drawerKnownAppsButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="应用包名管理  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:paddingLeft="16dp" android:layout_marginBottom="8dp" />
                 <LinearLayout android:id="@+id/drawerKnownApps" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/card_bg" android:visibility="gone" android:layout_marginBottom="8dp">
                     <TextView android:id="@+id/knownAppsText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="加载中…" android:textSize="11sp" android:textColor="#FF596D66" android:lineSpacingExtra="3dp" />
                     <EditText android:id="@+id/appAliasInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="应用昵称，例如 微博 / B站 / 学习通" android:textSize="11sp" android:singleLine="true" android:layout_marginTop="6dp" />
@@ -435,7 +436,7 @@
                     <Button android:id="@+id/testPackageButton" android:layout_width="wrap_content" android:layout_height="30dp" android:text="测试打开" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginTop="6dp" />
                 </LinearLayout>
 
-                <Button android:id="@+id/drawerControlTestButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="本机测试工具  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginBottom="8dp" />
+                <Button android:id="@+id/drawerControlTestButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="本机测试工具  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:paddingLeft="16dp" android:layout_marginBottom="8dp" />
                 <LinearLayout android:id="@+id/drawerControlTest" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/card_bg" android:visibility="gone" android:layout_marginBottom="8dp">
                     <Button android:id="@+id/openChatGptButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="打开回家目标" android:textSize="11sp" android:background="@drawable/pill_soft" />
                     <Button android:id="@+id/openXhsButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="打开小红书" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginTop="6dp" />
@@ -447,7 +448,7 @@
                     <Button android:id="@+id/alarmTestButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="测试一分钟后闹钟" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginTop="6dp" />
                 </LinearLayout>
 
-                <Button android:id="@+id/drawerDebugButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="高级调试日志  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginBottom="8dp" />
+                <Button android:id="@+id/drawerDebugButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="高级调试日志  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:paddingLeft="16dp" android:layout_marginBottom="8dp" />
                 <LinearLayout android:id="@+id/drawerDebug" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/card_bg" android:visibility="gone" android:layout_marginBottom="8dp">
                     <EditText android:id="@+id/cityInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="兼容旧字段：城市，例如 石家庄" android:textSize="11sp" android:singleLine="true" />
                     <EditText android:id="@+id/weatherInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="兼容旧字段：天气备注" android:textSize="11sp" android:singleLine="true" />
