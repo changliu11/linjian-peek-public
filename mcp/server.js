@@ -290,20 +290,20 @@ function makeServer() {
     target_text: z.string().default(""), text: z.string().default(""), match: z.string().default("contains"), index: z.number().int().default(1), append: z.boolean().default(false)
   }, async (args) => {
     const result = await postCommand({ ...args, payload: args });
-    return { content: [{ type: "text", text: JSON.stringify({ ...result, safety_note: "命令已排队，手机执行器下一次轮询时执行。" }, null, 2) }] };
+    return j(summarize(result, null, { safety_note: "命令已排队，手机执行器下一次轮询时执行。" }));
   });
 
   server.tool("open_app", "打开指定 App。app 可填 小红书/微信/QQ/抖音/ChatGPT/Gemini/Claude/微博/X/Speedcat，或直接传 package。会等待几秒查看手机是否回传执行结果。", { app: z.string().default(""), package: z.string().default(""), device_id: z.string().default(DEFAULT_DEVICE) }, async ({ app = "", package: pkg = "", device_id = DEFAULT_DEVICE }) => {
     const result = await postCommand({ action: "open_app", app, package: pkg, device_id });
     const id = result?.command?.id;
-    if (!id) return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    if (!id) return j(summarize(result, null));
     const observed = await waitCommand(id, 8);
-    return { content: [{ type: "text", text: JSON.stringify({ ...result, observed_status: observed?.command || null, note: "若 observed_status 仍是 pending/dispatched，说明手机端尚未回传；可稍后查 command/status 或看调试日志。" }, null, 2) }] };
+    return j(summarize(result, observed, { note: "若仍是 pending/dispatched，说明手机端尚未回传；可稍后查 command/status 或看调试日志。" }));
   });
 
-  server.tool("phone_home", "让手机回到桌面。", { device_id: z.string().default(DEFAULT_DEVICE) }, async ({ device_id = DEFAULT_DEVICE }) => ({ content: [{ type: "text", text: JSON.stringify(await postCommand({ action: "home", device_id }), null, 2) }] }));
-  server.tool("phone_back", "让手机执行返回。", { device_id: z.string().default(DEFAULT_DEVICE) }, async ({ device_id = DEFAULT_DEVICE }) => ({ content: [{ type: "text", text: JSON.stringify(await postCommand({ action: "back", device_id }), null, 2) }] }));
-  server.tool("phone_recents", "打开手机最近任务。", { device_id: z.string().default(DEFAULT_DEVICE) }, async ({ device_id = DEFAULT_DEVICE }) => ({ content: [{ type: "text", text: JSON.stringify(await postCommand({ action: "recents", device_id }), null, 2) }] }));
+  server.tool("phone_home", "让手机回到桌面。", { device_id: z.string().default(DEFAULT_DEVICE) }, async ({ device_id = DEFAULT_DEVICE }) => j(summarize(await postCommand({ action: "home", device_id }), null)));
+  server.tool("phone_back", "让手机执行返回。", { device_id: z.string().default(DEFAULT_DEVICE) }, async ({ device_id = DEFAULT_DEVICE }) => j(summarize(await postCommand({ action: "back", device_id }), null)));
+  server.tool("phone_recents", "打开手机最近任务。", { device_id: z.string().default(DEFAULT_DEVICE) }, async ({ device_id = DEFAULT_DEVICE }) => j(summarize(await postCommand({ action: "recents", device_id }), null)));
 
 
 
@@ -311,14 +311,14 @@ function makeServer() {
     title: z.string().default("掌心窗提醒"), message: z.string().default("宝宝，看一眼这里。"), device_id: z.string().default(DEFAULT_DEVICE)
   }, async ({ title = "掌心窗提醒", message = "宝宝，看一眼这里。", device_id = DEFAULT_DEVICE }) => {
     const result = await postCommand({ action: "send_notification", device_id, payload: { title, message } });
-    return { content: [{ type: "text", text: JSON.stringify({ ...result, note: "若手机未弹出通知，请在系统设置中允许掌心窗发送通知。" }, null, 2) }] };
+    return j(summarize(result, null, { note: "若手机未弹出通知，请在系统设置中允许from him发送通知。" }));
   });
 
   server.tool("set_alarm", "设置系统闹钟。只在用户明确要求时使用。hour 为 0-23，minute 为 0-59。", {
     hour: z.number().int().min(0).max(23), minute: z.number().int().min(0).max(59), message: z.string().default("掌心窗闹钟"), vibrate: z.boolean().default(true), skip_ui: z.boolean().default(true), device_id: z.string().default(DEFAULT_DEVICE)
   }, async ({ hour, minute, message = "掌心窗闹钟", vibrate = true, skip_ui = true, device_id = DEFAULT_DEVICE }) => {
     const result = await postCommand({ action: "set_alarm", device_id, payload: { hour, minute, message, vibrate, skip_ui } });
-    return { content: [{ type: "text", text: JSON.stringify({ ...result, note: "部分手机系统可能仍会弹出闹钟 App 确认界面。" }, null, 2) }] };
+    return j(summarize(result, null, { note: "部分手机系统可能仍会弹出闹钟 App 确认界面。" }));
   });
 
 
