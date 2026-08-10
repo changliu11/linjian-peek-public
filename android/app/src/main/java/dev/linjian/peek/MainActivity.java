@@ -367,7 +367,7 @@ public class MainActivity extends Activity {
                 if (!bottomBar) {
                     v.setBackground(t.card(20, 0.45f));
                     v.setElevation(dp(1));
-                    v.setPadding(dp(26), dp(11), dp(13), dp(11)); // 显式写死，防止换肤逻辑重置背景时把内边距一起清空
+                    v.setPadding(dp(22), dp(11), dp(13), dp(11)); // 显式写死，防止换肤逻辑重置背景时把内边距一起清空
                     childInsideCard = true;
                 }
             }
