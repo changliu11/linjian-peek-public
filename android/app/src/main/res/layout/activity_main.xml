@@ -50,7 +50,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:paddingLeft="26dp"
+        android:paddingLeft="16dp"
         android:paddingRight="16dp">
 
         <!-- 总览：只放最常看的生活状态 -->
@@ -466,7 +466,7 @@
         android:layout_height="44dp"
         android:orientation="horizontal"
         android:gravity="center"
-        android:paddingLeft="26dp"
+        android:paddingLeft="16dp"
         android:paddingRight="16dp"
         android:paddingTop="5dp"
         android:paddingBottom="5dp"
