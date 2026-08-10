@@ -364,7 +364,12 @@ public class MainActivity extends Activity {
             if (v instanceof LinearLayout && v.getBackground() != null && v != ((ViewGroup) findViewById(android.R.id.content)).getChildAt(0)) {
                 ViewGroup.LayoutParams lp = v.getLayoutParams();
                 boolean bottomBar = lp != null && lp.height <= dp(52) && lp.height >= dp(42);
-                if (!bottomBar) { v.setBackground(t.card(20, 0.45f)); v.setElevation(dp(1)); childInsideCard = true; }
+                if (!bottomBar) {
+                    v.setBackground(t.card(20, 0.45f));
+                    v.setElevation(dp(1));
+                    v.setPadding(dp(26), dp(11), dp(13), dp(11)); // 显式写死，防止换肤逻辑重置背景时把内边距一起清空
+                    childInsideCard = true;
+                }
             }
             for (int i = 0; i < g.getChildCount(); i++) styleTree(g.getChildAt(i), t, childInsideCard);
         }
