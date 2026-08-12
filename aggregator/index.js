@@ -11,6 +11,7 @@ const UPSTREAMS = [
   {
     name: 'galatea',
     url: process.env.GALATEA_MCP_URL,
+    token: process.env.GALATEA_MCP_TOKEN,
   },
 ];
 
