@@ -32,7 +32,7 @@ async function connectUpstream(upstream) {
   return { client, tools: result.tools };
 }
 
-async function getUpstream(upstream, retries = 3) {
+async function getUpstream(upstream, retries = 1) {
   const cached = cache.get(upstream.name);
   if (cached && cached.expiresAt > Date.now()) {
     return cached;
@@ -48,7 +48,7 @@ async function getUpstream(upstream, retries = 3) {
     } catch (err) {
       lastErr = err;
       console.error(`[${upstream.name}] 连接失败(第${i + 1}次): ${err.message}`);
-      await new Promise((r) => setTimeout(r, 8000));
+      if (i < retries - 1) await new Promise((r) => setTimeout(r, 1500));
     }
   }
   throw lastErr;
