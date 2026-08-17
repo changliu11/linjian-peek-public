@@ -115,6 +115,46 @@ def package_for(app_name: str, package: str = "") -> str:
     return KNOWN_APPS.get(key, KNOWN_APPS.get(key.lower(), ""))
 
 
+def trim_state_payload(state: dict | None) -> dict | None:
+    """精简查岗/状态类返回：去掉门禁过期锁、去重天气/历史日志等冗余字段，减少占用上下文。"""
+    if not state or not isinstance(state, dict):
+        return state
+    new_state = dict(state)
+
+    # ① 门禁：剔除已过期的锁
+    gate = new_state.get("app_gate")
+    if isinstance(gate, dict) and isinstance(gate.get("state"), dict):
+        gate_state = dict(gate["state"])
+        locks = gate_state.get("locks")
+        if isinstance(locks, dict):
+            now_ms = int(time.time() * 1000)
+            gate_state["locks"] = {
+                pkg: lock for pkg, lock in locks.items()
+                if isinstance(lock, dict) and lock.get("active") and now_ms < lock.get("locked_until_ms", 0)
+            }
+        # ② 历史日志/申请记录：只保留最近 5 条，不整份塞历史流水账
+        logs = gate_state.get("logs")
+        if isinstance(logs, list) and len(logs) > 3:
+            gate_state["logs"] = logs[-3:]
+        requests = gate_state.get("requests")
+        if isinstance(requests, list) and len(requests) > 3:
+            gate_state["requests"] = requests[-3:]
+        new_gate = dict(gate)
+        new_gate["state"] = gate_state
+        new_state["app_gate"] = new_gate
+
+    # ③ weather_locations 是 weather_state.locations 的重复副本，且没有代码依赖它，可以安全去掉
+    #    （current_weather_location 仍被 send_weather_notification 工具读取，保留不动）
+    new_state.pop("weather_locations", None)
+
+    return new_state
+
+
+def filter_expired_locks(state: dict | None) -> dict | None:
+    """兼容旧调用名，等价于 trim_state_payload。"""
+    return trim_state_payload(state)
+
+
 def make_command(device_id: str, action: str, app: str = "", package: str = "", payload: dict | None = None) -> dict:
     action = (action or "noop").strip().lower()
     if action not in ALLOWED_ACTIONS: action = "noop"
@@ -211,8 +251,8 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/api/device/state", "/api/life_state"):
             if not self._require_token(): return
             device_id = qs.get("device_id", [DEFAULT_DEVICE])[0] or DEFAULT_DEVICE
-            state = self.state.device_states.get(device_id)
-            self._json(200, {"ok": True, "device_id": device_id, "state": state, "life_state": state}); return
+            state = trim_state_payload(self.state.device_states.get(device_id))
+            self._json(200, {"ok": True, "device_id": device_id, "state": state}); return
         if path == "/api/guidian_state":
             if not self._require_token(): return
             device_id = qs.get("device_id", [DEFAULT_DEVICE])[0] or DEFAULT_DEVICE
