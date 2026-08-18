@@ -121,11 +121,24 @@ public class ScreenshotService extends AccessibilityService {
         // 这里再用节点实际坐标跟屏幕真实可视范围求交集，节点中心点不在屏幕内的直接跳过。
         if (!nodeRect.isEmpty()) {
             int centerY = (nodeRect.top + nodeRect.bottom) / 2;
+            int centerX = (nodeRect.left + nodeRect.right) / 2;
             if (centerY < screenRect.top || centerY > screenRect.bottom) return count;
+            // 根据实测截图校准：顶部状态栏+Tab栏约占11%，底部导航栏约占6%，两边不对称
+            int topMargin = (int) (screenRect.height() * 0.11f);
+            int bottomMargin = (int) (screenRect.height() * 0.06f);
+            if (centerY < screenRect.top + topMargin || centerY > screenRect.bottom - bottomMargin) return count;
+            // 右侧贴边约15%通常是点赞/评论/收藏/分享这一竖列悬浮按钮，一并跳过
+            int rightMargin = (int) (screenRect.width() * 0.15f);
+            if (centerX > screenRect.right - rightMargin) return count;
         }
         CharSequence text = node.getText();
         CharSequence desc = node.getContentDescription();
-        String value = text != null && text.length() > 0 ? text.toString() : (desc != null && desc.length() > 0 ? desc.toString() : "");
+        // 只保留屏幕上真正显示出来的文字（getText）；contentDescription 多数是给读屏软件用的
+        // 图标按钮语音标签（比如“按钮”“搜索”这种没有可见文字、只有语音注释的控件），不算真实内容，跳过。
+        // 例外：可编辑输入框的 contentDescription 常常是有用的占位提示，予以保留。
+        String value = text != null && text.length() > 0
+                ? text.toString()
+                : (node.isEditable() && desc != null && desc.length() > 0 ? desc.toString() : "");
         if (value.length() > 0) {
             if (sb.length() < 2600) sb.append(value).append(" | ");
             try {
