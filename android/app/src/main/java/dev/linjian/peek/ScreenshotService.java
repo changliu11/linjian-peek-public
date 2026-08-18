@@ -103,22 +103,33 @@ public class ScreenshotService extends AccessibilityService {
             AccessibilityNodeInfo root = getRootInActiveWindow();
             StringBuilder sb = new StringBuilder();
             JSONArray nodes = new JSONArray();
-            collect(root, sb, nodes, 0, 0);
+            android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+            Rect screenRect = new Rect(0, 0, dm.widthPixels, dm.heightPixels);
+            collect(root, sb, nodes, 0, 0, screenRect);
             screenText = sb.length() > 2400 ? sb.substring(0, 2400) : sb.toString();
             screenNodesJson = nodes.toString();
             if (root != null) root.recycle();
         } catch (Exception ignored) { }
     }
 
-    private int collect(AccessibilityNodeInfo node, StringBuilder sb, JSONArray nodes, int depth, int count) {
+    private int collect(AccessibilityNodeInfo node, StringBuilder sb, JSONArray nodes, int depth, int count, Rect screenRect) {
         if (node == null || count > 140 || depth > 14) return count;
+        if (!node.isVisibleToUser()) return count; // 跳过不在当前屏幕可视范围内的节点（feed类App常在内存里预加载上下条目）
+        Rect nodeRect = new Rect();
+        node.getBoundsInScreen(nodeRect);
+        // 二次校验：isVisibleToUser() 对 Feed 类 App（如抖音上下滑动预加载）判断不够准，
+        // 这里再用节点实际坐标跟屏幕真实可视范围求交集，节点中心点不在屏幕内的直接跳过。
+        if (!nodeRect.isEmpty()) {
+            int centerY = (nodeRect.top + nodeRect.bottom) / 2;
+            if (centerY < screenRect.top || centerY > screenRect.bottom) return count;
+        }
         CharSequence text = node.getText();
         CharSequence desc = node.getContentDescription();
         String value = text != null && text.length() > 0 ? text.toString() : (desc != null && desc.length() > 0 ? desc.toString() : "");
         if (value.length() > 0) {
             if (sb.length() < 2600) sb.append(value).append(" | ");
             try {
-                Rect r = new Rect(); node.getBoundsInScreen(r);
+                Rect r = nodeRect;
                 JSONObject o = new JSONObject();
                 o.put("index", nodes.length() + 1);
                 o.put("text", value.length() > 160 ? value.substring(0, 160) : value);
@@ -133,7 +144,7 @@ public class ScreenshotService extends AccessibilityService {
             } catch (Exception ignored) { }
             count++;
         }
-        for (int i = 0; i < node.getChildCount(); i++) count = collect(node.getChild(i), sb, nodes, depth + 1, count);
+        for (int i = 0; i < node.getChildCount(); i++) count = collect(node.getChild(i), sb, nodes, depth + 1, count, screenRect);
         return count;
     }
 
