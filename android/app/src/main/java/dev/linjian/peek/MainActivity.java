@@ -57,6 +57,7 @@ public class MainActivity extends Activity {
     private Button drawerConnectionButton, drawerPermissionButton, drawerControlTestButton, drawerKnownAppsButton, drawerHomeModeButton, drawerGateAddButton, drawerReminderButton, drawerCycleButton, drawerDebugButton, drawerLifeDetailsButton, drawerAppGateButton, drawerWeatherButton, drawerVersionButton, checkUpdateButton, downloadUpdateButton;
     private Button drawerGuidianButton, testGuidianButton, drawerGuidianSettingsButton, saveGuidianSettingsButton, guidianThemeDuskButton, guidianThemeCloudButton, guidianThemeBerryButton;
     private Button recordAudioButton;
+    private Button cancelAudioButton;
     private TextView audioTimerText, audioLastRecordText, audioHintText;
     private android.media.MediaRecorder mediaRecorder;
     private boolean isRecording = false;
@@ -136,6 +137,7 @@ public class MainActivity extends Activity {
                 }
             }
         });
+        if (cancelAudioButton != null) cancelAudioButton.setOnClickListener(v -> cancelRecordingAudio());
         if (userNameInput != null) userNameInput.setOnFocusChangeListener((v, hasFocus) -> { if (!hasFocus) { saveSettings(); updateUI(); } });
         if (partnerNameInput != null) partnerNameInput.setOnFocusChangeListener((v, hasFocus) -> { if (!hasFocus) { saveSettings(); updateUI(); } });
         if (homeTargetInput != null) homeTargetInput.setOnFocusChangeListener((v, hasFocus) -> { if (!hasFocus) { saveSettings(); updateUI(); } });
@@ -179,7 +181,7 @@ public class MainActivity extends Activity {
         themeCreamButton = findViewById(R.id.themeCreamButton); themeBlueButton = findViewById(R.id.themeBlueButton); themePeachButton = findViewById(R.id.themePeachButton); themeNightButton = findViewById(R.id.themeNightButton); themeMintButton = findViewById(R.id.themeMintButton);
         drawerConnectionButton = findViewById(R.id.drawerConnectionButton); drawerPermissionButton = findViewById(R.id.drawerPermissionButton); drawerControlTestButton = findViewById(R.id.drawerControlTestButton); drawerKnownAppsButton = findViewById(R.id.drawerKnownAppsButton); drawerHomeModeButton = findViewById(R.id.drawerHomeModeButton); drawerGateAddButton = findViewById(R.id.drawerGateAddButton); drawerReminderButton = findViewById(R.id.drawerReminderButton); drawerCycleButton = findViewById(R.id.drawerCycleButton); drawerDebugButton = findViewById(R.id.drawerDebugButton); drawerLifeDetailsButton = findViewById(R.id.drawerLifeDetailsButton); drawerAppGateButton = findViewById(R.id.drawerAppGateButton); drawerWeatherButton = findViewById(R.id.drawerWeatherButton); drawerVersionButton = findViewById(R.id.drawerVersionButton); checkUpdateButton = findViewById(R.id.checkUpdateButton); downloadUpdateButton = findViewById(R.id.downloadUpdateButton);
         drawerGuidianButton = findViewById(R.id.drawerGuidianButton); testGuidianButton = findViewById(R.id.testGuidianButton); drawerGuidianSettingsButton = findViewById(R.id.drawerGuidianSettingsButton); saveGuidianSettingsButton = findViewById(R.id.saveGuidianSettingsButton); guidianThemeDuskButton = findViewById(R.id.guidianThemeDuskButton); guidianThemeCloudButton = findViewById(R.id.guidianThemeCloudButton); guidianThemeBerryButton = findViewById(R.id.guidianThemeBerryButton);
-        recordAudioButton = findViewById(R.id.recordAudioButton); audioTimerText = findViewById(R.id.audioTimerText); audioLastRecordText = findViewById(R.id.audioLastRecordText); audioHintText = findViewById(R.id.audioHintText);
+        recordAudioButton = findViewById(R.id.recordAudioButton); cancelAudioButton = findViewById(R.id.cancelAudioButton); audioTimerText = findViewById(R.id.audioTimerText); audioLastRecordText = findViewById(R.id.audioLastRecordText); audioHintText = findViewById(R.id.audioHintText);
         remindersEnabled = findViewById(R.id.remindersEnabled); batteryRuleEnabled = findViewById(R.id.batteryRuleEnabled); screenRuleEnabled = findViewById(R.id.screenRuleEnabled); waterRuleEnabled = findViewById(R.id.waterRuleEnabled); restRuleEnabled = findViewById(R.id.restRuleEnabled); cycleEnabled = findViewById(R.id.cycleEnabled); foregroundPopupEnabled = findViewById(R.id.foregroundPopupEnabled); homeModeEnabled = findViewById(R.id.homeModeEnabled); homeModeForceEnabled = findViewById(R.id.homeModeForceEnabled); appGateEnabled = findViewById(R.id.appGateEnabled);
         guidianEnabled = findViewById(R.id.guidianEnabled); guidianRemoteEnabled = findViewById(R.id.guidianRemoteEnabled); guidianFullscreenEnabled = findViewById(R.id.guidianFullscreenEnabled); guidianQuietEnabled = findViewById(R.id.guidianQuietEnabled);
         tabSettings = findViewById(R.id.tabSettings); tabSee = findViewById(R.id.tabSee); tabControl = findViewById(R.id.tabControl); tabLife = findViewById(R.id.tabLife); tabGate = findViewById(R.id.tabGate); tabDebug = findViewById(R.id.tabDebug);
@@ -497,6 +499,7 @@ public class MainActivity extends Activity {
             isRecording = true;
             recordStartMs = System.currentTimeMillis();
             if (recordAudioButton != null) recordAudioButton.setText("■ 停止录音");
+            if (cancelAudioButton != null) cancelAudioButton.setVisibility(View.VISIBLE);
             if (audioTimerText != null) audioTimerText.setVisibility(View.VISIBLE);
             audioTimerHandler.post(audioTimerTick);
             DebugState.append(this, "开始录音：" + currentAudioPath);
@@ -520,6 +523,7 @@ public class MainActivity extends Activity {
         isRecording = false;
         audioTimerHandler.removeCallbacksAndMessages(null);
         if (recordAudioButton != null) recordAudioButton.setText("● 开始录音");
+        if (cancelAudioButton != null) cancelAudioButton.setVisibility(View.GONE);
         if (audioTimerText != null) audioTimerText.setVisibility(View.GONE);
         try {
             if (mediaRecorder != null) mediaRecorder.stop();
@@ -529,6 +533,27 @@ public class MainActivity extends Activity {
         }
         long durationSec = (System.currentTimeMillis() - recordStartMs) / 1000;
         uploadAudioFile(currentAudioPath, durationSec);
+    }
+
+    private void cancelRecordingAudio() {
+        if (!isRecording) return;
+        isRecording = false;
+        audioTimerHandler.removeCallbacksAndMessages(null);
+        if (recordAudioButton != null) recordAudioButton.setText("● 开始录音");
+        if (cancelAudioButton != null) cancelAudioButton.setVisibility(View.GONE);
+        if (audioTimerText != null) audioTimerText.setVisibility(View.GONE);
+        try {
+            if (mediaRecorder != null) mediaRecorder.stop();
+        } catch (Exception ignored) { }
+        finally {
+            if (mediaRecorder != null) { mediaRecorder.release(); mediaRecorder = null; }
+        }
+        try {
+            java.io.File f = new java.io.File(currentAudioPath);
+            if (f.exists()) f.delete();
+        } catch (Exception ignored) { }
+        if (audioLastRecordText != null) audioLastRecordText.setText("已取消这次录音，没有上传。");
+        DebugState.append(this, "已取消录音，未上传：" + currentAudioPath);
     }
 
     private void uploadAudioFile(String path, long durationSec) {
