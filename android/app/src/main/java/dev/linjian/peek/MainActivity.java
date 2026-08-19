@@ -56,6 +56,15 @@ public class MainActivity extends Activity {
     private Button themeCreamButton, themeBlueButton, themePeachButton, themeNightButton, themeMintButton;
     private Button drawerConnectionButton, drawerPermissionButton, drawerControlTestButton, drawerKnownAppsButton, drawerHomeModeButton, drawerGateAddButton, drawerReminderButton, drawerCycleButton, drawerDebugButton, drawerLifeDetailsButton, drawerAppGateButton, drawerWeatherButton, drawerVersionButton, checkUpdateButton, downloadUpdateButton;
     private Button drawerGuidianButton, testGuidianButton, drawerGuidianSettingsButton, saveGuidianSettingsButton, guidianThemeDuskButton, guidianThemeCloudButton, guidianThemeBerryButton;
+    private Button recordAudioButton;
+    private TextView audioTimerText, audioLastRecordText, audioHintText;
+    private android.media.MediaRecorder mediaRecorder;
+    private boolean isRecording = false;
+    private String currentAudioPath = "";
+    private long recordStartMs = 0;
+    private final Handler audioTimerHandler = new Handler(Looper.getMainLooper());
+    private static final int REQ_RECORD_AUDIO = 9001;
+    private static final int MAX_RECORD_MS = 60000;
     private CheckBox remindersEnabled, batteryRuleEnabled, screenRuleEnabled, waterRuleEnabled, restRuleEnabled, cycleEnabled, foregroundPopupEnabled, homeModeEnabled, homeModeForceEnabled, appGateEnabled;
     private CheckBox guidianEnabled, guidianRemoteEnabled, guidianFullscreenEnabled, guidianQuietEnabled;
     private Button tabSettings, tabSee, tabControl, tabLife, tabGate, tabDebug;
@@ -116,6 +125,18 @@ public class MainActivity extends Activity {
         if (downloadUpdateButton != null) downloadUpdateButton.setOnClickListener(v -> downloadLatestApk());
         if (testGuidianButton != null) testGuidianButton.setOnClickListener(v -> { saveSettings(); JSONObject r = GuidianState.showPrompt(this, true); Toast.makeText(this, r.optBoolean("ok", false) ? "已触发归电" : ("触发失败：" + r.optString("reason", r.optString("error", "unknown"))), Toast.LENGTH_SHORT).show(); updateUI(); });
         if (saveGuidianSettingsButton != null) saveGuidianSettingsButton.setOnClickListener(v -> { saveSettings(); updateUI(); Toast.makeText(this, "已保存归电设置", Toast.LENGTH_SHORT).show(); });
+        if (recordAudioButton != null) recordAudioButton.setOnClickListener(v -> {
+            if (isRecording) stopAndUploadAudio();
+            else {
+                if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO)
+                        != PackageManager.PERMISSION_GRANTED) {
+                    androidx.core.app.ActivityCompat.requestPermissions(this,
+                            new String[]{android.Manifest.permission.RECORD_AUDIO}, REQ_RECORD_AUDIO);
+                } else {
+                    startRecordingAudio();
+                }
+            }
+        });
         if (userNameInput != null) userNameInput.setOnFocusChangeListener((v, hasFocus) -> { if (!hasFocus) { saveSettings(); updateUI(); } });
         if (partnerNameInput != null) partnerNameInput.setOnFocusChangeListener((v, hasFocus) -> { if (!hasFocus) { saveSettings(); updateUI(); } });
         if (homeTargetInput != null) homeTargetInput.setOnFocusChangeListener((v, hasFocus) -> { if (!hasFocus) { saveSettings(); updateUI(); } });
@@ -159,6 +180,7 @@ public class MainActivity extends Activity {
         themeCreamButton = findViewById(R.id.themeCreamButton); themeBlueButton = findViewById(R.id.themeBlueButton); themePeachButton = findViewById(R.id.themePeachButton); themeNightButton = findViewById(R.id.themeNightButton); themeMintButton = findViewById(R.id.themeMintButton);
         drawerConnectionButton = findViewById(R.id.drawerConnectionButton); drawerPermissionButton = findViewById(R.id.drawerPermissionButton); drawerControlTestButton = findViewById(R.id.drawerControlTestButton); drawerKnownAppsButton = findViewById(R.id.drawerKnownAppsButton); drawerHomeModeButton = findViewById(R.id.drawerHomeModeButton); drawerGateAddButton = findViewById(R.id.drawerGateAddButton); drawerReminderButton = findViewById(R.id.drawerReminderButton); drawerCycleButton = findViewById(R.id.drawerCycleButton); drawerDebugButton = findViewById(R.id.drawerDebugButton); drawerLifeDetailsButton = findViewById(R.id.drawerLifeDetailsButton); drawerAppGateButton = findViewById(R.id.drawerAppGateButton); drawerWeatherButton = findViewById(R.id.drawerWeatherButton); drawerVersionButton = findViewById(R.id.drawerVersionButton); checkUpdateButton = findViewById(R.id.checkUpdateButton); downloadUpdateButton = findViewById(R.id.downloadUpdateButton);
         drawerGuidianButton = findViewById(R.id.drawerGuidianButton); testGuidianButton = findViewById(R.id.testGuidianButton); drawerGuidianSettingsButton = findViewById(R.id.drawerGuidianSettingsButton); saveGuidianSettingsButton = findViewById(R.id.saveGuidianSettingsButton); guidianThemeDuskButton = findViewById(R.id.guidianThemeDuskButton); guidianThemeCloudButton = findViewById(R.id.guidianThemeCloudButton); guidianThemeBerryButton = findViewById(R.id.guidianThemeBerryButton);
+        recordAudioButton = findViewById(R.id.recordAudioButton); audioTimerText = findViewById(R.id.audioTimerText); audioLastRecordText = findViewById(R.id.audioLastRecordText); audioHintText = findViewById(R.id.audioHintText);
         remindersEnabled = findViewById(R.id.remindersEnabled); batteryRuleEnabled = findViewById(R.id.batteryRuleEnabled); screenRuleEnabled = findViewById(R.id.screenRuleEnabled); waterRuleEnabled = findViewById(R.id.waterRuleEnabled); restRuleEnabled = findViewById(R.id.restRuleEnabled); cycleEnabled = findViewById(R.id.cycleEnabled); foregroundPopupEnabled = findViewById(R.id.foregroundPopupEnabled); homeModeEnabled = findViewById(R.id.homeModeEnabled); homeModeForceEnabled = findViewById(R.id.homeModeForceEnabled); appGateEnabled = findViewById(R.id.appGateEnabled);
         guidianEnabled = findViewById(R.id.guidianEnabled); guidianRemoteEnabled = findViewById(R.id.guidianRemoteEnabled); guidianFullscreenEnabled = findViewById(R.id.guidianFullscreenEnabled); guidianQuietEnabled = findViewById(R.id.guidianQuietEnabled);
         tabSettings = findViewById(R.id.tabSettings); tabSee = findViewById(R.id.tabSee); tabControl = findViewById(R.id.tabControl); tabLife = findViewById(R.id.tabLife); tabGate = findViewById(R.id.tabGate); tabDebug = findViewById(R.id.tabDebug);
@@ -444,6 +466,107 @@ public class MainActivity extends Activity {
         if (ss == null) { DebugState.append(this, "测试失败：无障碍服务未连接"); Toast.makeText(this, "先开启无障碍服务", Toast.LENGTH_LONG).show(); openAccessibilitySettings(); return; }
         String partner = AppPrefs.partnerName(this); DebugState.append(this, "给" + partner + "看一眼：开始截图上传"); ss.doScreenshot(url, token); Toast.makeText(this, "正在给" + partner + "看一眼", Toast.LENGTH_SHORT).show(); updateUI();
     }
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQ_RECORD_AUDIO) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startRecordingAudio();
+            } else {
+                Toast.makeText(this, "没有麦克风权限，无法录音", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void startRecordingAudio() {
+        try {
+            java.io.File dir = getCacheDir();
+            currentAudioPath = dir.getAbsolutePath() + "/rec_" + System.currentTimeMillis() + ".m4a";
+            mediaRecorder = new android.media.MediaRecorder();
+            mediaRecorder.setAudioSource(android.media.MediaRecorder.AudioSource.MIC);
+            mediaRecorder.setOutputFormat(android.media.MediaRecorder.OutputFormat.MPEG_4);
+            mediaRecorder.setAudioEncoder(android.media.MediaRecorder.AudioEncoder.AAC);
+            mediaRecorder.setAudioEncodingBitRate(128000);
+            mediaRecorder.setAudioSamplingRate(44100);
+            mediaRecorder.setOutputFile(currentAudioPath);
+            mediaRecorder.setMaxDuration(MAX_RECORD_MS);
+            mediaRecorder.setOnInfoListener((mr, what, extra) -> {
+                if (what == android.media.MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED) stopAndUploadAudio();
+            });
+            mediaRecorder.prepare();
+            mediaRecorder.start();
+            isRecording = true;
+            recordStartMs = System.currentTimeMillis();
+            if (recordAudioButton != null) recordAudioButton.setText("■ 停止录音");
+            if (audioTimerText != null) audioTimerText.setVisibility(View.VISIBLE);
+            audioTimerHandler.post(audioTimerTick);
+            DebugState.append(this, "开始录音：" + currentAudioPath);
+        } catch (Exception e) {
+            Toast.makeText(this, "录音启动失败：" + ScreenshotService.shortMsg(e), Toast.LENGTH_SHORT).show();
+            DebugState.append(this, "录音启动异常：" + ScreenshotService.shortMsg(e));
+        }
+    }
+
+    private final Runnable audioTimerTick = new Runnable() {
+        @Override public void run() {
+            if (!isRecording) return;
+            long sec = (System.currentTimeMillis() - recordStartMs) / 1000;
+            if (audioTimerText != null) audioTimerText.setText(String.format(java.util.Locale.getDefault(), "%02d:%02d", sec / 60, sec % 60));
+            audioTimerHandler.postDelayed(this, 500);
+        }
+    };
+
+    private void stopAndUploadAudio() {
+        if (!isRecording) return;
+        isRecording = false;
+        audioTimerHandler.removeCallbacksAndMessages(null);
+        if (recordAudioButton != null) recordAudioButton.setText("● 开始录音");
+        if (audioTimerText != null) audioTimerText.setVisibility(View.GONE);
+        try {
+            if (mediaRecorder != null) mediaRecorder.stop();
+        } catch (Exception ignored) { }
+        finally {
+            if (mediaRecorder != null) { mediaRecorder.release(); mediaRecorder = null; }
+        }
+        long durationSec = (System.currentTimeMillis() - recordStartMs) / 1000;
+        uploadAudioFile(currentAudioPath, durationSec);
+    }
+
+    private void uploadAudioFile(String path, long durationSec) {
+        new Thread(() -> {
+            try {
+                java.io.File f = new java.io.File(path);
+                byte[] data = new byte[(int) f.length()];
+                try (java.io.FileInputStream fis = new java.io.FileInputStream(f)) { fis.read(data); }
+                String url = ScreenshotService.normalizeUrl(AppPrefs.server(this));
+                SharedPreferences prefs = getSharedPreferences(AppPrefs.PREFS, MODE_PRIVATE);
+                String token = prefs.getString(AppPrefs.KEY_TOKEN, "");
+                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new java.net.URL(url + "/api/audio").openConnection();
+                conn.setRequestMethod("POST"); conn.setDoOutput(true);
+                conn.setRequestProperty("X-Auth-Token", token);
+                conn.setRequestProperty("Content-Type", "audio/mp4");
+                conn.setConnectTimeout(15000); conn.setReadTimeout(30000);
+                java.io.OutputStream os = conn.getOutputStream(); os.write(data); os.flush(); os.close();
+                int code = conn.getResponseCode();
+                boolean ok = code >= 200 && code < 300;
+                conn.disconnect();
+                f.delete();
+                runOnUiThread(() -> {
+                    String stamp = new java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(new java.util.Date());
+                    if (audioLastRecordText == null) return;
+                    if (ok) {
+                        audioLastRecordText.setText("最近一次：今天 " + stamp + " · 时长 " + durationSec + " 秒 · 已上传");
+                        Toast.makeText(this, "录音已上传", Toast.LENGTH_SHORT).show();
+                    } else {
+                        audioLastRecordText.setText("上传失败，HTTP " + code + "，请检查服务器地址和 Token");
+                    }
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> { if (audioLastRecordText != null) audioLastRecordText.setText("上传异常：" + ScreenshotService.shortMsg(e)); });
+            }
+        }).start();
+    }
+
     private void testAlarm() { Calendar c = Calendar.getInstance(); c.add(Calendar.MINUTE, 1); try { Intent i = new Intent(AlarmClock.ACTION_SET_ALARM); i.putExtra(AlarmClock.EXTRA_HOUR, c.get(Calendar.HOUR_OF_DAY)); i.putExtra(AlarmClock.EXTRA_MINUTES, c.get(Calendar.MINUTE)); i.putExtra(AlarmClock.EXTRA_MESSAGE, "from him测试闹钟：" + AppPrefs.userName(this) + "看到了就说明成功"); i.putExtra(AlarmClock.EXTRA_VIBRATE, true); i.putExtra(AlarmClock.EXTRA_SKIP_UI, true); startActivity(i); DebugState.append(this, "已请求设置一分钟后的测试闹钟"); } catch (Exception e) { DebugState.append(this, "测试闹钟失败：" + e.getClass().getSimpleName()); Toast.makeText(this, "闹钟 App 没接住请求", Toast.LENGTH_SHORT).show(); } }
     private void testNotification() { saveSettings(); boolean ok = CompanionService.showReminderNotification(this, "from him悬浮横幅测试", AppPrefs.userName(this) + "看到了顶部横幅，就说明通知通道正常。"); DebugState.append(this, ok ? "已发送悬浮横幅测试提醒" : "悬浮横幅/通知失败：请允许掌心窗发送通知"); Toast.makeText(this, ok ? "已发送横幅测试" : "请先允许通知权限", Toast.LENGTH_SHORT).show(); updateUI(); }
     private void addPackageAlias() { String alias = appAliasInput == null ? "" : appAliasInput.getText().toString().trim(); String pkg = appPackageInput == null ? "" : appPackageInput.getText().toString().trim(); if (alias.isEmpty()) { Toast.makeText(this, "先填应用名/昵称", Toast.LENGTH_SHORT).show(); return; } if (!AppPrefs.isPackageLike(pkg)) { Toast.makeText(this, "包名格式不对，例如 com.xingin.xhs", Toast.LENGTH_LONG).show(); return; } AppPrefs.saveCustomApp(this, alias, pkg); DebugState.append(this, "已保存可打开应用：" + alias + " → " + pkg); Toast.makeText(this, "已添加包名", Toast.LENGTH_SHORT).show(); updateUI(); }
