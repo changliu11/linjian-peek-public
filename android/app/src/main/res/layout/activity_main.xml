@@ -223,6 +223,31 @@
                     <TextView android:id="@+id/recentScreenshotHint" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="最近截图会显示在这里，方便老公确认画面。" android:textSize="11sp" android:textColor="#FF7E928C" android:layout_marginTop="6dp" android:lineSpacingExtra="4dp" />
                 </LinearLayout>
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="@drawable/card_bg"
+                    android:layout_marginBottom="8dp">
+
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="录音" android:textStyle="bold" android:textSize="16sp" android:textColor="#FF2D3E39" />
+                    <TextView android:id="@+id/audioHintText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="点击开始，最长录 60 秒，停止后自动上传。" android:textSize="11sp" android:textColor="#FF7E928C" android:layout_marginTop="6dp" android:lineSpacingExtra="4dp" />
+
+                    <Button
+                        android:id="@+id/recordAudioButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="38dp"
+                        android:text="● 开始录音"
+                        android:textSize="12sp"
+                        android:background="@drawable/pill_primary"
+                        android:textColor="#FFFFFFFF"
+                        android:layout_marginTop="8dp" />
+
+                    <TextView android:id="@+id/audioTimerText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" android:textStyle="bold" android:textSize="20sp" android:textColor="#FFB23B3B" android:layout_marginTop="10dp" android:visibility="gone" />
+
+                    <TextView android:id="@+id/audioLastRecordText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="还没有录过。" android:textSize="11sp" android:textColor="#FF596D66" android:layout_marginTop="10dp" android:lineSpacingExtra="4dp" />
+                </LinearLayout>
+
                 <Button
                     android:id="@+id/drawerGuidianButton"
                     android:layout_width="match_parent"
