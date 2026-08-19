@@ -123,6 +123,34 @@ async function fetchLatestImage() {
   return { mimeType, data: buf.toString("base64"), bytes: buf.byteLength };
 }
 
+async function fetchLatestAudio() {
+  const res = await linjianFetch("/api/latest_audio");
+  const ab = await res.arrayBuffer();
+  return Buffer.from(ab).toString("base64");
+}
+
+async function transcribeAudioWithGemini(base64Audio) {
+  const key = process.env.GEMINI_API_KEY || "";
+  if (!key) return "（未配置 GEMINI_API_KEY，无法转写）";
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: "请转写这段音频的完整内容，并简要描述语气和情绪。用中文回答。" },
+            { inline_data: { mime_type: "audio/mp4", data: base64Audio } }
+          ]
+        }]
+      })
+    }
+  );
+  const data = await res.json().catch(() => ({}));
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text || `（转写失败：${JSON.stringify(data).slice(0, 200)}）`;
+}
+
 function makeServer() {
   const server = new McpServer({ name: "掌心窗", version: "0.3.5.0-public" });
 
@@ -555,6 +583,13 @@ function makeServer() {
     const res = await linjianFetch("/api/appgate/unlock_requests");
     const data = await res.json();
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  });
+
+  server.tool("latest_audio", "读取掌心窗最近一次录音，并用 Gemini 转写内容和语气，返回文字结果。", {}, async () => {
+    const info = await linjianFetch("/api/latest_audio.json").then((r) => r.json());
+    const base64Audio = await fetchLatestAudio();
+    const text = await transcribeAudioWithGemini(base64Audio);
+    return { content: [{ type: "text", text: `录音时间戳 ${info.mtime}，大小约 ${info.size} bytes。\n\n内容：${text}` }] };
   });
 
   return server;
