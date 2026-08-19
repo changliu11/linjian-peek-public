@@ -97,6 +97,8 @@ class State:
         self.data_dir = Path(data_dir).resolve()
         self.shots_dir = self.data_dir / "screenshots"
         self.shots_dir.mkdir(parents=True, exist_ok=True)
+        self.audio_dir = self.data_dir / "audio"
+        self.audio_dir.mkdir(parents=True, exist_ok=True)
         self.commands: list[dict] = []
         self.command_history: dict[str, dict] = {}
         self.commands_lock = Lock()
@@ -270,6 +272,17 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {"ok": True, "requests": self.state.unlock_requests[-50:]}); return
         if path == "/api/known_apps":
             self._json(200, {"ok": True, "apps": KNOWN_APPS}); return
+        if path == "/api/latest_audio.json":
+            if not self._require_token(): return
+            clips = sorted(self.state.audio_dir.glob("rec_*"), key=lambda p: p.stat().st_mtime)
+            if not clips: self._json(404, {"ok": False, "error": ERR_NOT_FOUND}); return
+            clip = clips[-1]; st = clip.stat()
+            self._json(200, {"ok": True, "filename": clip.name, "size": st.st_size, "mtime": st.st_mtime, "url": "/api/latest_audio"}); return
+        if path == "/api/latest_audio":
+            if not self._require_token(): return
+            clips = sorted(self.state.audio_dir.glob("rec_*"), key=lambda p: p.stat().st_mtime)
+            if not clips: self._json(404, {"ok": False, "error": ERR_NOT_FOUND}); return
+            self._send_bytes(200, clips[-1].read_bytes(), "audio/mp4"); return
         self._json(404, {"ok": False, "error": ERR_BAD_METHOD})
 
     def do_POST(self) -> None:
@@ -311,6 +324,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/screenshot":
             if not self._require_token(): return
             self._handle_screenshot(); return
+        if path == "/api/audio":
+            if not self._require_token(): return
+            self._handle_audio(); return
         self._json(404, {"ok": False, "error": ERR_BAD_METHOD})
 
     def _queue(self, cmd: dict) -> None:
@@ -337,6 +353,21 @@ class Handler(BaseHTTPRequestHandler):
         if self.state.hook:
             try: subprocess.Popen([*self.state.hook.split(), str(dest.resolve())], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             except Exception as exc: self.log_message("hook failed: %s", exc)
+        self._json(200, {"ok": True, "filename": dest.name, "size": len(data)})
+
+    def _handle_audio(self) -> None:
+        length = int(self.headers.get("Content-Length", 0))
+        if length <= 0: self._json(400, {"ok": False, "error": ERR_NO_IMAGE}); return
+        if length > MAX_UPLOAD_BYTES: self._json(413, {"ok": False, "error": ERR_TOO_LARGE}); return
+        data = self.rfile.read(length)
+        if len(data) < 100: self._json(400, {"ok": False, "error": ERR_NO_IMAGE}); return
+        dest = self.state.audio_dir / f"rec_{int(time.time() * 1000)}.m4a"
+        dest.write_bytes(data)
+        clips = sorted(self.state.audio_dir.glob("rec_*"), key=lambda p: p.stat().st_mtime)
+        old_list = clips[:-self.state.keep] if self.state.keep > 0 else clips[:-1]
+        for old in old_list:
+            try: old.unlink()
+            except OSError: pass
         self._json(200, {"ok": True, "filename": dest.name, "size": len(data)})
 
 
