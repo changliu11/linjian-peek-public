@@ -128,10 +128,9 @@ public class MainActivity extends Activity {
         if (recordAudioButton != null) recordAudioButton.setOnClickListener(v -> {
             if (isRecording) stopAndUploadAudio();
             else {
-                if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO)
+                if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
                         != PackageManager.PERMISSION_GRANTED) {
-                    androidx.core.app.ActivityCompat.requestPermissions(this,
-                            new String[]{android.Manifest.permission.RECORD_AUDIO}, REQ_RECORD_AUDIO);
+                    requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO}, REQ_RECORD_AUDIO);
                 } else {
                     startRecordingAudio();
                 }
