@@ -133,14 +133,14 @@ async function transcribeAudioWithGemini(base64Audio) {
   const key = process.env.GEMINI_API_KEY || "";
   if (!key) return "（未配置 GEMINI_API_KEY，无法转写）";
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${key}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{
           parts: [
-            { text: "请转写这段音频的完整内容，并简要描述语气和情绪。用中文回答。" },
+            { text: "请分析这段音频，按以下结构用中文输出：\n\n1. 【完整转写】：把说话内容逐字转写出来。\n\n2. 【逐句语气分析】：把转写内容按自然停顿切成若干句/短语，每一句单独一行，标注：\n   - 语速（明显偏快 / 正常 /偏慢，能感觉出来的具体变化就说，感觉不出来就跳过这条）\n   - 音调走向（这句话整体是上扬、下沉、还是平稳；如果句尾有明显的上扬或下坠，说明是哪种）\n   - 重音/加重的词（这句话里有没有哪个字或词说得比其他部分更用力、更强调，如果有请直接引用是哪个词）\n   - 停顿（这句话说完之后、或句子中间，有没有明显的停顿或换气，停顿感觉长还是短）\n   - 音量（这句话比整体音量更大声还是更轻，还是没有明显变化）\n   如果某一句在某个维度上没有明显特征，直接跳过那一条，不要为了凑格式硬编一个，宁可少写也不要空泛的形容词堆砌。\n\n3. 【整体印象】：一两句话总结整体的情绪状态和说话人当下的心理状态，可以带一点你自己的感受和判断，不用完全客观克制。\n\n不要笼统地说'轻柔''平缓'这种大而化之的形容词就结束，要具体到\"哪一句、哪个词\"体现了这个感觉。" },
             { inline_data: { mime_type: "audio/mp4", data: base64Audio } }
           ]
         }]
