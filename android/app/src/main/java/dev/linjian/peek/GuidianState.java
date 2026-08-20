@@ -35,6 +35,7 @@ public class GuidianState {
     public static final String KEY_PROMPTS = "guidian_prompts";
     public static final String KEY_REASONS = "guidian_reasons";
     public static final String KEY_REJECT_REPLIES = "guidian_reject_replies";
+    public static final String KEY_NEXT_REJECT_REPLY = "guidian_next_reject_reply";
     public static final String KEY_AVATAR_URI = "guidian_avatar_uri";
     public static final String KEY_LAST_RETURN_AT = "guidian_last_return_at";
     public static final String KEY_LAST_RETURN_SOURCE = "guidian_last_return_source";
@@ -110,6 +111,7 @@ public class GuidianState {
             o.put("prompts", p.getString(KEY_PROMPTS, defaultPrompts()));
             o.put("quick_reasons", p.getString(KEY_REASONS, defaultReasons()));
             o.put("reject_replies", p.getString(KEY_REJECT_REPLIES, defaultRejectReplies()));
+            o.put("next_reject_reply_pinned", p.getString(KEY_NEXT_REJECT_REPLY, ""));
             long autoCheckAt = p.getLong(KEY_LAST_AUTO_CHECK_AT, 0);
             long lastDueAt = p.getLong(KEY_LAST_DUE_AT, 0);
             o.put("last_auto_check_at_ms", autoCheckAt);
@@ -296,6 +298,7 @@ public class GuidianState {
                 if (p.has("prompts")) e.putString(KEY_PROMPTS, p.optString("prompts", defaultPrompts()));
                 if (p.has("quick_reasons")) e.putString(KEY_REASONS, p.optString("quick_reasons", defaultReasons()));
                 if (p.has("reject_replies")) e.putString(KEY_REJECT_REPLIES, p.optString("reject_replies", defaultRejectReplies()));
+                if (p.has("next_reject_reply")) e.putString(KEY_NEXT_REJECT_REPLY, p.optString("next_reject_reply", ""));
                 if (p.has("partner_name")) e.putString(AppPrefs.KEY_PARTNER_NICKNAME, p.optString("partner_name", AppPrefs.partnerName(ctx)).trim());
                 if (p.has("ai_name")) e.putString(AppPrefs.KEY_PARTNER_NICKNAME, p.optString("ai_name", AppPrefs.partnerName(ctx)).trim());
                 e.apply();
@@ -341,6 +344,11 @@ public class GuidianState {
     }
 
     public static String pickRejectReply(Context ctx) {
+    String pinned = prefs(ctx).getString(KEY_NEXT_REJECT_REPLY, "");
+    if (pinned != null && pinned.trim().length() > 0) {
+        prefs(ctx).edit().remove(KEY_NEXT_REJECT_REPLY).apply();
+        return fill(ctx, pinned.trim());
+    }
     String raw = prefs(ctx).getString(KEY_REJECT_REPLIES, defaultRejectReplies());
     String[] lines = raw == null ? new String[0] : raw.split("\\n");
     java.util.ArrayList<String> usable = new java.util.ArrayList<>();
