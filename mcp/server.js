@@ -590,7 +590,7 @@ function makeServer() {
     return j(summarize(result, observed));
   });
 
-  server.tool("set_guidian_config", "在用户已授权时调整归电设置。可改开关、间隔、冷却、每日上限、安静时段、目标 App、AI 名字、主题和文案池。", {
+  server.tool("set_guidian_config", "在用户已授权时调整归电设置。可改开关、间隔、冷却、每日上限、安静时段、目标 App、AI 名字、主题、来电文案池、拒绝回应文案池。next_reject_reply 可一次性预设下一条拒绝回复，用一次后自动清空；不设就沿用文案池随机。", {
     device_id: z.string().default(DEFAULT_DEVICE),
     enabled: z.boolean().optional(),
     allow_remote: z.boolean().optional(),
@@ -608,6 +608,8 @@ function makeServer() {
     theme: z.string().optional(),
     prompts: z.string().optional(),
     quick_reasons: z.string().optional(),
+    reject_replies: z.string().optional(),
+    next_reject_reply: z.string().optional(),
     wait_seconds: z.number().int().min(3).max(20).default(8)
   }, async (args) => {
     const { device_id = DEFAULT_DEVICE, wait_seconds = 8, ...payload } = args;
