@@ -106,6 +106,22 @@ function j(obj) {
   return { content: [{ type: "text", text: JSON.stringify(obj) }] };
 }
 
+function trimLifeState(data) {
+  const clone = JSON.parse(JSON.stringify(data || {}));
+  const state = clone?.state;
+  if (!state) return clone;
+  delete state.known_apps;
+  if (state.app_gate) {
+    delete state.app_gate.protected_packages;
+  }
+  if (state.guidian_state) {
+    delete state.guidian_state.prompts;
+    delete state.guidian_state.quick_reasons;
+    delete state.guidian_state.reject_replies;
+  }
+  return clone;
+}
+
 async function latestInfo() {
   const res = await linjianFetch("/api/latest.json");
   return await res.json();
@@ -278,10 +294,10 @@ function makeServer() {
     return j(summarize(result, observed));
   });
 
-  server.tool("get_life_state", "读取掌心窗生活状态层：电量、充电、网络、当前 App、今日屏幕时间、解锁次数、当前天气地区等。默认不截图。", { device_id: z.string().default(DEFAULT_DEVICE) }, async ({ device_id = DEFAULT_DEVICE }) => {
+  server.tool("get_life_state", "读取掌心窗生活状态层：电量、充电、网络、当前 App、今日屏幕时间、解锁次数、当前天气地区等。默认不截图。已剔除静态文案池和包名映射表，需要这些请单独调用 list_known_apps / get_guidian_state。", { device_id: z.string().default(DEFAULT_DEVICE) }, async ({ device_id = DEFAULT_DEVICE }) => {
     const res = await linjianFetch(`/api/life_state?device_id=${encodeURIComponent(device_id)}`);
     const data = await res.json();
-    return { content: [{ type: "text", text: JSON.stringify(data) }] };
+    return { content: [{ type: "text", text: JSON.stringify(trimLifeState(data)) }] };
   });
 
   server.tool("get_weather_state", "按掌心窗当前天气地区查询实时天气，并生成出门建议。不会截图；如果手机端没有设置当前地区，会返回缺少城市。", { device_id: z.string().default(DEFAULT_DEVICE), city: z.string().default("") }, async ({ device_id = DEFAULT_DEVICE, city = "" }) => {
@@ -493,12 +509,17 @@ function makeServer() {
   }, async ({ app = "", package: pkg = "", passphrase, device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => gateCommand({ action: "set_emergency_passphrase", app, package: pkg, device_id, passphrase, emergency_passphrase: passphrase, emergencyPassphrase: passphrase, payload: { app, package: pkg, passphrase, emergency_passphrase: passphrase, emergencyPassphrase: passphrase } }, wait_seconds));
 
 
-  server.tool("get_senses_state", "读取掌心窗『感官』聚合状态：生活状态 + 归电状态。不截图，不包含私用聆音/鲸鸣/声息。", { device_id: z.string().default(DEFAULT_DEVICE) }, async ({ device_id = DEFAULT_DEVICE }) => {
+  server.tool("get_senses_state", "读取掌心窗『感官』聚合状态：生活状态 + 归电状态。不截图，不包含私用聆音/鲸鸣/声息。已剔除静态文案池和包名映射表，需要这些请单独调用 list_known_apps / get_guidian_state。", { device_id: z.string().default(DEFAULT_DEVICE) }, async ({ device_id = DEFAULT_DEVICE }) => {
     const lifeRes = await linjianFetch(`/api/life_state?device_id=${encodeURIComponent(device_id)}`);
     const life = await lifeRes.json();
+    const trimmedLife = trimLifeState(life);
     const guidianRes = await linjianFetch(`/api/guidian_state?device_id=${encodeURIComponent(device_id)}`);
     const guidian = await guidianRes.json();
-    return { content: [{ type: "text", text: JSON.stringify({ ok: true, device_id, life_state: life?.life_state || life?.state || life, guidian_state: guidian?.guidian_state || {} }, null, 2) }] };
+    const guidianState = { ...(guidian?.guidian_state || {}) };
+    delete guidianState.prompts;
+    delete guidianState.quick_reasons;
+    delete guidianState.reject_replies;
+    return { content: [{ type: "text", text: JSON.stringify({ ok: true, device_id, life_state: trimmedLife?.life_state || trimmedLife?.state || trimmedLife, guidian_state: guidianState }, null, 2) }] };
   });
 
   server.tool("get_guidian_state", "读取掌心窗『归电』状态：上次回来、下次最早归电、今日次数、拒绝理由、主题和设置。不会截图。", { device_id: z.string().default(DEFAULT_DEVICE) }, async ({ device_id = DEFAULT_DEVICE }) => {
