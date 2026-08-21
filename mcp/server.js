@@ -574,13 +574,34 @@ function makeServer() {
       const rejectAt = Number(g.last_reject_at_ms || 0);
       const returnAt = Number(g.last_return_at_ms || 0);
       if (rejectAt > baselineReject) {
-        return { content: [{ type: "text", text: JSON.stringify({ ok: true, resolved: true, outcome: "rejected", reason: g.last_reject_reason || "", guidian_state: g }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ok: true, resolved: true, outcome: "rejected", reason: g.last_reject_reason || "", reply_pending: !!g.reply_pending, guidian_state: g }, null, 2) }] };
       }
       if (returnAt > baselineReturn) {
         return { content: [{ type: "text", text: JSON.stringify({ ok: true, resolved: true, outcome: "returned", source: g.last_return_source || "", guidian_state: g }, null, 2) }] };
       }
     }
     return { content: [{ type: "text", text: JSON.stringify({ ok: true, resolved: false, outcome: "timeout", guidian_state: last }, null, 2) }] };
+  });
+
+  server.tool("push_guidian_reply", "在 wait_for_guidian_response 检测到 outcome=rejected 且 reply_pending=true 时调用，立刻把指定文案推给设备并弹出通知，同时清掉等待标记。如果 reply_pending 已经是 false，说明这次已经被处理过了（可能已经 skip 过），会返回 no_pending_reply。", {
+    reply: z.string(),
+    device_id: z.string().default(DEFAULT_DEVICE),
+    wait_seconds: z.number().int().min(3).max(20).default(8)
+  }, async ({ reply, device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
+    const result = await postCommand({ action: "push_guidian_reply", device_id, payload: { reply } });
+    const id = result?.command?.id;
+    const observed = id ? await waitCommand(id, wait_seconds) : null;
+    return j(summarize(result, observed));
+  });
+
+  server.tool("skip_guidian_reply", "在检测到用户拒绝归电、但这次不打算自定义或从文案池挑一条时调用，明确放弃这次回复权，让设备立刻用本地文案池随机兜底一条。这是主动弃权，不是超时——没有计时器，只有调用了 push_guidian_reply 或 skip_guidian_reply 之一，设备才会真正发出通知。", {
+    device_id: z.string().default(DEFAULT_DEVICE),
+    wait_seconds: z.number().int().min(3).max(20).default(8)
+  }, async ({ device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
+    const result = await postCommand({ action: "skip_guidian_reply", device_id, payload: {} });
+    const id = result?.command?.id;
+    const observed = id ? await waitCommand(id, wait_seconds) : null;
+    return j(summarize(result, observed));
   });
 
   server.tool("mark_guidian_returned", "手动标记用户已经回到归电目标 App。一般不需要用；接受归电或打开目标 App 会自动记录。", { source: z.string().default("mcp"), device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8) }, async ({ source = "mcp", device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
