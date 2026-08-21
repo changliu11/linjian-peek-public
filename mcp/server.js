@@ -562,7 +562,6 @@ function makeServer() {
     const baselineReject = Number(g0.last_reject_at_ms || 0);
     const baselineReturn = Number(g0.last_return_at_ms || 0);
     const deadline = Date.now() + timeout_seconds * 1000;
-    let last = g0;
     while (Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, 1500));
       const res = await linjianFetch(`/api/guidian_state?device_id=${encodeURIComponent(device_id)}`).catch(() => null);
@@ -570,17 +569,16 @@ function makeServer() {
       const data = await res.json().catch(() => null);
       if (!data) continue;
       const g = data?.guidian_state || {};
-      last = g;
       const rejectAt = Number(g.last_reject_at_ms || 0);
       const returnAt = Number(g.last_return_at_ms || 0);
       if (rejectAt > baselineReject) {
-        return { content: [{ type: "text", text: JSON.stringify({ ok: true, resolved: true, outcome: "rejected", reason: g.last_reject_reason || "", reply_pending: !!g.reply_pending, guidian_state: g }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ok: true, resolved: true, outcome: "rejected", reason: g.last_reject_reason || "", reply_pending: !!g.reply_pending }, null, 2) }] };
       }
       if (returnAt > baselineReturn) {
-        return { content: [{ type: "text", text: JSON.stringify({ ok: true, resolved: true, outcome: "returned", source: g.last_return_source || "", guidian_state: g }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ok: true, resolved: true, outcome: "returned", source: g.last_return_source || "" }, null, 2) }] };
       }
     }
-    return { content: [{ type: "text", text: JSON.stringify({ ok: true, resolved: false, outcome: "timeout", guidian_state: last }, null, 2) }] };
+    return { content: [{ type: "text", text: JSON.stringify({ ok: true, resolved: false, outcome: "timeout" }, null, 2) }] };
   });
 
   server.tool("push_guidian_reply", "在 wait_for_guidian_response 检测到 outcome=rejected 且 reply_pending=true 时调用，立刻把指定文案推给设备并弹出通知，同时清掉等待标记。如果 reply_pending 已经是 false，说明这次已经被处理过了（可能已经 skip 过），会返回 no_pending_reply。", {
