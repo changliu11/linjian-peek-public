@@ -222,7 +222,6 @@ public class GuidianState {
         JSONObject out = new JSONObject();
         try {
             SharedPreferences p = prefs(ctx);
-            if (!p.getBoolean(KEY_REPLY_PENDING, false)) return out.put("ok", false).put("error", "no_pending_reply");
             p.edit().putBoolean(KEY_REPLY_PENDING, false).apply();
             String text = fill(ctx, reply == null ? "" : reply.trim());
             if (!text.isEmpty()) CompanionService.showReminderNotification(ctx, AppPrefs.partnerName(ctx), text);
