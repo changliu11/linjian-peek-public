@@ -581,7 +581,7 @@ function makeServer() {
     return { content: [{ type: "text", text: JSON.stringify({ ok: true, resolved: false, outcome: "timeout" }, null, 2) }] };
   });
 
-  server.tool("push_guidian_reply", "在 wait_for_guidian_response 检测到 outcome=rejected 且 reply_pending=true 时调用，立刻把指定文案推给设备并弹出通知，同时清掉等待标记。如果 reply_pending 已经是 false，说明这次已经被处理过了（可能已经 skip 过），会返回 no_pending_reply。", {
+  server.tool("push_guidian_reply", "在 wait_for_guidian_response 检测到 outcome=rejected 且 reply_pending=true 时调用，立刻把指定文案推给设备并弹出通知。可以连续多次调用，每次都会立刻发一条新通知，不限制次数——想追加就追加。第一次调用后 reply_pending 会变 false，之后 skip_guidian_reply 会被挡下，不会再叠加系统随机兜底。", {
     reply: z.string(),
     device_id: z.string().default(DEFAULT_DEVICE),
     wait_seconds: z.number().int().min(3).max(20).default(8)
