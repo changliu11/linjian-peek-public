@@ -177,7 +177,7 @@ public class CompanionService extends Service {
     }
 
     private static boolean isGuidianAction(String action) {
-        return "get_guidian_state".equals(action) || "set_guidian_config".equals(action) || "trigger_guidian".equals(action) || "mark_guidian_returned".equals(action);
+        return "get_guidian_state".equals(action) || "set_guidian_config".equals(action) || "trigger_guidian".equals(action) || "mark_guidian_returned".equals(action) || "push_guidian_reply".equals(action) || "skip_guidian_reply".equals(action);
     }
 
     private static void executeCommand(Context ctx, String id, String action, String app, String pkg, float x, float y, float x1, float y1, float x2, float y2, long duration, int hour, int minute, String title, String message, boolean vibrate, String serverUrl, String token) {
