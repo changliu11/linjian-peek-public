@@ -372,8 +372,8 @@ function makeServer() {
 
 
   server.tool("send_notification", "发送一条手机系统通知提醒。只在用户明确要求时使用。", {
-    title: z.string().default("掌心窗提醒"), message: z.string().default("宝宝，看一眼这里。"), device_id: z.string().default(DEFAULT_DEVICE)
-  }, async ({ title = "掌心窗提醒", message = "宝宝，看一眼这里。", device_id = DEFAULT_DEVICE }) => {
+    title: z.string().default("掌心窗提醒"), message: z.string(), device_id: z.string().default(DEFAULT_DEVICE)
+  }, async ({ title = "掌心窗提醒", message, device_id = DEFAULT_DEVICE }) => {
     const result = await postCommand({ action: "send_notification", device_id, payload: { title, message } });
     return j(summarize(result, null, { note: "若手机未弹出通知，请在系统设置中允许from him发送通知。" }));
   });
@@ -396,7 +396,7 @@ function makeServer() {
     duration: z.number().int().default(350),
     wait_ms: z.number().int().min(0).max(5000).default(800),
     title: z.string().default("掌心窗提醒"),
-    message: z.string().default("宝宝，看一眼这里。"),
+    message: z.string().default(""),
     expect_app: z.string().default(""),
     target_text: z.string().default(""),
     text: z.string().default(""),
