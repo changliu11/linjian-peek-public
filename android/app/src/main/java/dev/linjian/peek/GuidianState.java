@@ -36,6 +36,7 @@ public class GuidianState {
     public static final String KEY_REASONS = "guidian_reasons";
     public static final String KEY_REJECT_REPLIES = "guidian_reject_replies";
     public static final String KEY_NEXT_REJECT_REPLY = "guidian_next_reject_reply";
+    public static final String KEY_REPLY_PENDING = "guidian_reply_pending";
     public static final String KEY_AVATAR_URI = "guidian_avatar_uri";
     public static final String KEY_LAST_RETURN_AT = "guidian_last_return_at";
     public static final String KEY_LAST_RETURN_SOURCE = "guidian_last_return_source";
@@ -112,6 +113,7 @@ public class GuidianState {
             o.put("quick_reasons", p.getString(KEY_REASONS, defaultReasons()));
             o.put("reject_replies", p.getString(KEY_REJECT_REPLIES, defaultRejectReplies()));
             o.put("next_reject_reply_pinned", p.getString(KEY_NEXT_REJECT_REPLY, ""));
+            o.put("reply_pending", p.getBoolean(KEY_REPLY_PENDING, false));
             long autoCheckAt = p.getLong(KEY_LAST_AUTO_CHECK_AT, 0);
             long lastDueAt = p.getLong(KEY_LAST_DUE_AT, 0);
             o.put("last_auto_check_at_ms", autoCheckAt);
@@ -192,6 +194,44 @@ public class GuidianState {
                 .putString(KEY_LAST_REJECT_REASON, reason == null ? "" : reason.trim())
                 .apply();
         DebugState.append(ctx, "归电已拒绝：" + (reason == null ? "" : reason.trim()));
+    }
+
+    public static void beginPendingReply(Context ctx) {
+        prefs(ctx).edit().putBoolean(KEY_REPLY_PENDING, true).apply();
+    }
+
+    public static JSONObject resolvePendingReplySkip(Context ctx) {
+        JSONObject out = new JSONObject();
+        try {
+            SharedPreferences p = prefs(ctx);
+            if (!p.getBoolean(KEY_REPLY_PENDING, false)) return out.put("ok", false).put("error", "no_pending_reply");
+            p.edit().putBoolean(KEY_REPLY_PENDING, false).apply();
+            String replyText = pickRejectReply(ctx);
+            if (replyText != null && !replyText.trim().isEmpty()) {
+                CompanionService.showReminderNotification(ctx, AppPrefs.partnerName(ctx), replyText.trim());
+            }
+            DebugState.append(ctx, "MCP 主动放弃这次回复，本地文案池兜底：" + replyText);
+            return out.put("ok", true).put("sent", replyText == null ? "" : replyText);
+        } catch (Exception e) {
+            try { out.put("ok", false).put("error", ScreenshotService.shortMsg(e)); } catch (Exception ignored) { }
+            return out;
+        }
+    }
+
+    public static JSONObject resolvePendingReplyNow(Context ctx, String reply) {
+        JSONObject out = new JSONObject();
+        try {
+            SharedPreferences p = prefs(ctx);
+            if (!p.getBoolean(KEY_REPLY_PENDING, false)) return out.put("ok", false).put("error", "no_pending_reply");
+            p.edit().putBoolean(KEY_REPLY_PENDING, false).apply();
+            String text = fill(ctx, reply == null ? "" : reply.trim());
+            if (!text.isEmpty()) CompanionService.showReminderNotification(ctx, AppPrefs.partnerName(ctx), text);
+            DebugState.append(ctx, "MCP 已推送拒绝回复：" + text);
+            return out.put("ok", true).put("sent", text);
+        } catch (Exception e) {
+            try { out.put("ok", false).put("error", ScreenshotService.shortMsg(e)); } catch (Exception ignored) { }
+            return out;
+        }
     }
 
     public static void evaluate(Context ctx, JSONObject state) {
@@ -279,6 +319,11 @@ public class GuidianState {
             if ("get_guidian_state".equals(action)) return config(ctx).put("ok", true);
             if ("mark_guidian_returned".equals(action)) { markReturned(ctx, cmd.optString("source", "mcp")); return config(ctx).put("ok", true); }
             if ("trigger_guidian".equals(action)) return showPrompt(ctx, true);
+            if ("push_guidian_reply".equals(action)) {
+                JSONObject p2 = cmd.optJSONObject("payload"); if (p2 == null) p2 = cmd;
+                return resolvePendingReplyNow(ctx, p2.optString("reply", ""));
+            }
+            if ("skip_guidian_reply".equals(action)) return resolvePendingReplySkip(ctx);
             if ("set_guidian_config".equals(action)) {
                 if (!prefs(ctx).getBoolean(KEY_ALLOW_REMOTE, true)) return out.put("ok", false).put("error", "remote_config_disabled");
                 JSONObject p = cmd.optJSONObject("payload"); if (p == null) p = cmd;
