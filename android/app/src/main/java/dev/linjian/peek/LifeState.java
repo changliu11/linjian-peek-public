@@ -2,7 +2,6 @@ package dev.linjian.peek;
 
 import android.app.AppOpsManager;
 import android.app.usage.UsageEvents;
-import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -190,16 +189,48 @@ public class LifeState {
             Calendar cal = Calendar.getInstance();
             cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0); cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0);
             long start = cal.getTimeInMillis();
-            List<UsageStats> stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, start, now);
+
+            java.util.HashMap<String, Long> foregroundStarts = new java.util.HashMap<>();
+            java.util.HashMap<String, Long> foregroundTotals = new java.util.HashMap<>();
+            UsageEvents events = usm.queryEvents(start, now);
+            UsageEvents.Event event = new UsageEvents.Event();
+            while (events != null && events.hasNextEvent()) {
+                events.getNextEvent(event);
+                int type = event.getEventType();
+                String pkg = event.getPackageName();
+                long ts = Math.max(start, Math.min(now, event.getTimeStamp()));
+
+                boolean isUnlock = false;
+                if (Build.VERSION.SDK_INT >= 28) isUnlock = type == UsageEvents.Event.KEYGUARD_HIDDEN || type == UsageEvents.Event.SCREEN_INTERACTIVE;
+                else isUnlock = type == UsageEvents.Event.USER_INTERACTION;
+                if (isUnlock) { summary.unlockCount++; summary.lastUnlockAt = event.getTimeStamp(); }
+
+                if (pkg == null || pkg.trim().isEmpty()) continue;
+                if (isForegroundEvent(type)) {
+                    foregroundStarts.put(pkg, ts);
+                } else if (isBackgroundEvent(type)) {
+                    Long begin = foregroundStarts.remove(pkg);
+                    if (begin != null && ts > begin) {
+                        long old = foregroundTotals.containsKey(pkg) ? foregroundTotals.get(pkg) : 0L;
+                        foregroundTotals.put(pkg, old + (ts - begin));
+                    }
+                }
+            }
+            for (java.util.Map.Entry<String, Long> e : foregroundStarts.entrySet()) {
+                long begin = Math.max(start, e.getValue());
+                if (now > begin) {
+                    long old = foregroundTotals.containsKey(e.getKey()) ? foregroundTotals.get(e.getKey()) : 0L;
+                    foregroundTotals.put(e.getKey(), old + (now - begin));
+                }
+            }
+
             long total = 0;
             List<AppUse> apps = new ArrayList<>();
-            if (stats != null) {
-                for (UsageStats st : stats) {
-                    long fg = st.getTotalTimeInForeground();
-                    if (fg <= 0) continue;
-                    total += fg;
-                    apps.add(new AppUse(appLabel(ctx, st.getPackageName()), st.getPackageName(), fg));
-                }
+            for (java.util.Map.Entry<String, Long> e : foregroundTotals.entrySet()) {
+                long fg = e.getValue() == null ? 0L : e.getValue();
+                if (fg <= 0) continue;
+                total += fg;
+                apps.add(new AppUse(appLabel(ctx, e.getKey()), e.getKey(), fg));
             }
             Collections.sort(apps, new Comparator<AppUse>() { @Override public int compare(AppUse a, AppUse b) { return Long.compare(b.ms, a.ms); } });
             JSONArray arr = new JSONArray();
@@ -211,19 +242,20 @@ public class LifeState {
             }
             summary.screenTimeMinutes = (int) Math.round(total / 60000.0);
             summary.topApps = arr;
-
-            UsageEvents events = usm.queryEvents(start, now);
-            UsageEvents.Event event = new UsageEvents.Event();
-            while (events != null && events.hasNextEvent()) {
-                events.getNextEvent(event);
-                int type = event.getEventType();
-                boolean isUnlock = false;
-                if (Build.VERSION.SDK_INT >= 28) isUnlock = type == UsageEvents.Event.KEYGUARD_HIDDEN || type == UsageEvents.Event.SCREEN_INTERACTIVE;
-                else isUnlock = type == UsageEvents.Event.USER_INTERACTION;
-                if (isUnlock) { summary.unlockCount++; summary.lastUnlockAt = event.getTimeStamp(); }
-            }
         } catch (Exception ignored) { }
         return summary;
+    }
+
+    private static boolean isForegroundEvent(int type) {
+        if (type == UsageEvents.Event.MOVE_TO_FOREGROUND) return true;
+        if (Build.VERSION.SDK_INT >= 29 && type == UsageEvents.Event.ACTIVITY_RESUMED) return true;
+        return false;
+    }
+
+    private static boolean isBackgroundEvent(int type) {
+        if (type == UsageEvents.Event.MOVE_TO_BACKGROUND) return true;
+        if (Build.VERSION.SDK_INT >= 29 && (type == UsageEvents.Event.ACTIVITY_PAUSED || type == UsageEvents.Event.ACTIVITY_STOPPED)) return true;
+        return false;
     }
 
     private static String appLabel(Context ctx, String pkg) {
