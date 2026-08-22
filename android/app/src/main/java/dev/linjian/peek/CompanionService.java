@@ -38,6 +38,8 @@ public class CompanionService extends Service {
     private String token;
     private Handler pollHandler;
     private HandlerThread pollThread;
+    private long rateLimitedUntilMs = 0L;
+    private static long lastStateUploadMs = 0L;
 
     public static boolean isRunning() { return running; }
     @Override public IBinder onBind(Intent intent) { return null; }
@@ -73,6 +75,8 @@ public class CompanionService extends Service {
 
     private void pollLoop() {
         if (!running) return;
+        long now = System.currentTimeMillis();
+        long delay = AppPrefs.interval(this);
         try {
             String latestServer = ScreenshotService.normalizeUrl(AppPrefs.server(this));
             String latestToken = AppPrefs.token(this);
@@ -86,11 +90,15 @@ public class CompanionService extends Service {
                 serverUrl = latestServer;
             }
             token = latestToken;
-            uploadState(serverUrl, token);
-            String body = pollServer();
-            if (body != null && body.length() > 0) handleCommandBody(this, body, serverUrl, token);
+            uploadStateThrottled(serverUrl, token, this, false);
+            if (rateLimitedUntilMs > now) {
+                delay = Math.max(delay, rateLimitedUntilMs - now);
+            } else {
+                String body = pollServer();
+                if (body != null && body.length() > 0) handleCommandBody(this, body, serverUrl, token);
+            }
         } catch (Exception e) { DebugState.append(this, "轮询异常：" + ScreenshotService.friendlyNetMsg(e)); }
-        if (running) pollHandler.postDelayed(this::pollLoop, Math.max(700, AppPrefs.interval(this)));
+        if (running) pollHandler.postDelayed(this::pollLoop, Math.max(700, delay));
     }
 
     private String pollServer() throws Exception {
@@ -101,9 +109,21 @@ public class CompanionService extends Service {
             if (code == 200) {
                 if (body.contains("\"command\": null") || body.contains("\"command\":null")) return "";
                 DebugState.append(this, "轮询成功：收到命令包"); return body;
+            } else if (code == 429) {
+                long retryMs = parseRetryAfterMs(conn.getHeaderField("Retry-After"));
+                rateLimitedUntilMs = System.currentTimeMillis() + retryMs;
+                DebugState.append(this, "轮询限流：HTTP 429，约 " + Math.max(1, retryMs / 1000) + " 秒后重试");
             } else DebugState.append(this, "轮询失败：HTTP " + code + " " + ScreenshotService.httpHint(code) + " " + ScreenshotService.clip(body));
             return "";
         } finally { conn.disconnect(); }
+    }
+
+    private static long parseRetryAfterMs(String header) {
+        try {
+            if (header == null || header.trim().isEmpty()) return 15000L;
+            long seconds = Long.parseLong(header.trim());
+            return Math.max(5000L, Math.min(60000L, seconds * 1000L));
+        } catch (Exception ignored) { return 15000L; }
     }
 
     public static void handleCommandBody(Context ctx, String body, String serverUrl, String token) {
@@ -145,7 +165,7 @@ public class CompanionService extends Service {
                 AppPrefs.saveCustomApp(ctx, alias, p);
                 String result = "saved_known_app:" + alias + "=" + p;
                 DebugState.append(ctx, result);
-                try { reportCommand(ctx, serverUrl, token, id, true, result); uploadState(serverUrl, token, ctx); } catch (Exception ignored) { }
+                try { reportCommand(ctx, serverUrl, token, id, true, result); uploadStateThrottled(serverUrl, token, ctx, true); } catch (Exception ignored) { }
                 return;
             }
             if (isAppGateAction(action)) {
@@ -153,7 +173,7 @@ public class CompanionService extends Service {
                 boolean ok = rr.optBoolean("ok", false);
                 String result = rr.optString("result", rr.toString());
                 DebugState.append(ctx, "执行应用门禁命令 " + action + "：" + result);
-                try { reportCommand(ctx, serverUrl, token, id, ok, result); uploadState(serverUrl, token, ctx); } catch (Exception ignored) { }
+                try { reportCommand(ctx, serverUrl, token, id, ok, result); uploadStateThrottled(serverUrl, token, ctx, true); } catch (Exception ignored) { }
                 return;
             }
             if (isGuidianAction(action)) {
@@ -161,7 +181,7 @@ public class CompanionService extends Service {
                 boolean ok = rr.optBoolean("ok", false);
                 String result = rr.optString("result", rr.toString());
                 DebugState.append(ctx, "执行归电命令 " + action + "：" + result);
-                try { reportCommand(ctx, serverUrl, token, id, ok, result); uploadState(serverUrl, token, ctx); } catch (Exception ignored) { }
+                try { reportCommand(ctx, serverUrl, token, id, ok, result); uploadStateThrottled(serverUrl, token, ctx, true); } catch (Exception ignored) { }
                 return;
             }
             if ("run_sequence".equals(action)) {
@@ -193,7 +213,7 @@ public class CompanionService extends Service {
         boolean ok = one.optBoolean("ok", false);
         String result = one.optString("result", one.toString());
         DebugState.append(ctx, "执行命令 " + action + "：" + result);
-        try { reportCommand(ctx, serverUrl, token, id, ok, result); uploadState(serverUrl, token, ctx); } catch (Exception ignored) { }
+        try { reportCommand(ctx, serverUrl, token, id, ok, result); uploadStateThrottled(serverUrl, token, ctx, true); } catch (Exception ignored) { }
     }
 
     private static JSONObject performAction(Context ctx, String action, String app, String pkg, float x, float y, float x1, float y1, float x2, float y2, long duration, int hour, int minute, String title, String message, boolean vibrate, String serverUrl, String token, boolean skipUi, String targetText, String inputText, String match, int index, boolean append) {
@@ -307,7 +327,7 @@ public class CompanionService extends Service {
             finalReport.put("steps", report);
         } catch (Exception ignored) { }
         DebugState.append(ctx, "动作序列结束：" + (allOk ? "全部成功" : "有步骤失败") + "，执行 " + executed + "/" + count);
-        try { reportCommand(ctx, serverUrl, token, id, allOk, finalReport.toString()); uploadState(serverUrl, token, ctx); } catch (Exception ignored) { }
+        try { reportCommand(ctx, serverUrl, token, id, allOk, finalReport.toString()); uploadStateThrottled(serverUrl, token, ctx, true); } catch (Exception ignored) { }
     }
 
     private static int clampWait(int v) { return Math.max(0, Math.min(5000, v)); }
@@ -413,9 +433,14 @@ public class CompanionService extends Service {
         HomeMode.evaluate(ctx, state);
         GuidianState.evaluate(ctx, state);
     }
-    private static void uploadState(String serverUrl, String token) throws Exception {
-        Context ctx = ScreenshotService.getInstance();
+    private static void uploadStateThrottled(String serverUrl, String token, Context ctx, boolean force) throws Exception {
         if (ctx == null) return;
+        long now = System.currentTimeMillis();
+        if (!force && now - lastStateUploadMs < AppPrefs.STATE_UPLOAD_INTERVAL_MS) {
+            GuidianState.evaluate(ctx, LifeState.collect(ctx));
+            return;
+        }
+        lastStateUploadMs = now;
         uploadState(serverUrl, token, ctx);
     }
 
