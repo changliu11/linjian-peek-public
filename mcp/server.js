@@ -14,17 +14,27 @@ function requireConfig() {
   if (!LINJIAN_TOKEN) throw new Error("Missing env LINJIAN_TOKEN");
 }
 
+const QUICK_FETCH_TIMEOUT_MS = 6000;
+
 async function linjianFetch(path, options = {}) {
   requireConfig();
-  const res = await fetch(`${LINJIAN_URL}${path}`, {
-    ...options,
-    headers: { "X-Auth-Token": LINJIAN_TOKEN, ...(options.headers || {}) }
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Linjian server HTTP ${res.status}: ${text || res.statusText}`);
+  const { timeout_ms, ...fetchOptions } = options;
+  const controller = timeout_ms ? new AbortController() : null;
+  const timer = timeout_ms ? setTimeout(() => controller.abort(), timeout_ms) : null;
+  try {
+    const res = await fetch(`${LINJIAN_URL}${path}`, {
+      ...fetchOptions,
+      headers: { "X-Auth-Token": LINJIAN_TOKEN, ...(fetchOptions.headers || {}) },
+      ...(controller ? { signal: controller.signal } : {})
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Linjian server HTTP ${res.status}: ${text || res.statusText}`);
+    }
+    return res;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
-  return res;
 }
 
 async function postCommand(payload) {
@@ -123,6 +133,22 @@ function buildLifeSummaryText(data) {
 
 function j(obj) {
   return { content: [{ type: "text", text: JSON.stringify(obj) }] };
+}
+
+const KNOWN_APP_PACKAGES = {
+  "小红书": "com.xingin.xhs", "xhs": "com.xingin.xhs", "xiaohongshu": "com.xingin.xhs",
+  "抖音": "com.ss.android.ugc.aweme", "douyin": "com.ss.android.ugc.aweme",
+  "微信": "com.tencent.mm", "wechat": "com.tencent.mm",
+  "qq": "com.tencent.mobileqq", "QQ": "com.tencent.mobileqq",
+  "QQ音乐": "com.tencent.qqmusic", "qq音乐": "com.tencent.qqmusic", "qqmusic": "com.tencent.qqmusic"
+};
+function knownPackageForApp(app = "") {
+  const raw = String(app || "").trim();
+  if (!raw) return "";
+  return KNOWN_APP_PACKAGES[raw] || KNOWN_APP_PACKAGES[raw.toLowerCase()] || "";
+}
+function missingAppTargetResult(action = "open_app") {
+  return j({ ok: false, error: "missing_app_target", action, message: "缺少 App 名称或包名，命令没有下发到手机端。请填写 app（如“小红书”）或 package（如 com.xingin.xhs）。" });
 }
 
 function trimLifeState(data) {
@@ -227,10 +253,14 @@ function makeServer() {
     return { content: [{ type: "text", text: JSON.stringify({ ok: true, linjian_url: LINJIAN_URL, health, has_latest: Boolean(latest), latest }, null, 2) }] };
   });
 
-  server.tool("get_phone_state", "读取手机最近状态。返回 current_package、screen_text、accessibility_ready。", { device_id: z.string().default(DEFAULT_DEVICE) }, async ({ device_id = DEFAULT_DEVICE }) => {
-    const res = await linjianFetch(`/api/device/state?device_id=${encodeURIComponent(device_id)}`);
-    const data = await res.json();
-    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  server.tool("get_phone_state", "读取手机最近状态。返回 current_package、screen_text、accessibility_ready。快速读取服务器缓存，不等待手机实时刷新，避免长时间卡住。", { device_id: z.string().default(DEFAULT_DEVICE) }, async ({ device_id = DEFAULT_DEVICE }) => {
+    try {
+      const res = await linjianFetch(`/api/device/state?device_id=${encodeURIComponent(device_id)}`, { timeout_ms: QUICK_FETCH_TIMEOUT_MS });
+      const data = await res.json();
+      return { content: [{ type: "text", text: JSON.stringify({ ...data, mcp_note: "已快速读取服务器缓存状态；如果 state/life_state 为 null，请保持掌心窗前台或允许后台运行后重试。" }, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: JSON.stringify({ ok: false, error: "phone_state_fetch_failed", message: "读取手机状态超时或后端暂时不可达；请确认 Render 服务已唤醒、MCP URL/Token 正确、掌心窗允许后台运行。", detail: String(error?.message || error).slice(0, 500) }, null, 2) }] };
+    }
   });
 
 
@@ -358,7 +388,11 @@ function makeServer() {
   });
 
   server.tool("open_app", "打开指定 App。app 可填 小红书/微信/QQ/抖音/ChatGPT/Gemini/Claude/微博/X/Speedcat，或直接传 package。会等待几秒查看手机是否回传执行结果。", { app: z.string().default(""), package: z.string().default(""), device_id: z.string().default(DEFAULT_DEVICE) }, async ({ app = "", package: pkg = "", device_id = DEFAULT_DEVICE }) => {
-    const result = await postCommand({ action: "open_app", app, package: pkg, device_id });
+    const cleanApp = String(app || "").trim();
+    let cleanPkg = String(pkg || "").trim();
+    if (!cleanPkg) cleanPkg = knownPackageForApp(cleanApp);
+    if (!cleanApp && !cleanPkg) return missingAppTargetResult("open_app");
+    const result = await postCommand({ action: "open_app", app: cleanApp, package: cleanPkg, device_id });
     const id = result?.command?.id;
     if (!id) return j(summarize(result, null));
     const observed = await waitCommand(id, 8);
@@ -467,7 +501,11 @@ function makeServer() {
   });
 
 
+  const GATE_NO_TARGET_ACTIONS = new Set(["get_lock_state", "list_lockable_apps"]);
   async function gateCommand(payload, wait_seconds = 8) {
+    const appVal = String(payload?.app || "").trim();
+    const pkgVal = String(payload?.package || "").trim();
+    if (!GATE_NO_TARGET_ACTIONS.has(payload?.action) && !appVal && !pkgVal) return missingAppTargetResult(payload?.action || "gate");
     const result = await postCommand(payload);
     const id = result?.command?.id;
     const observed = id ? await waitCommand(id, wait_seconds) : null;
